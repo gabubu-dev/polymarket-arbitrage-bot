@@ -1,0 +1,46 @@
+{
+  "polymarket": {
+    "api_key": "",
+    "api_secret": "",
+    "private_key": "",
+    "chain_id": 137
+  },
+  "exchanges": {
+    "binance": {
+      "api_key": "",
+      "api_secret": "",
+      "testnet": false
+    },
+    "coinbase": {
+      "api_key": "",
+      "api_secret": ""
+    }
+  },
+  "trading": {
+    "divergence_threshold": 0.05,
+    "min_profit_threshold": 0.02,
+    "position_size_usd": 100,
+    "max_positions": 5,
+    "max_position_size_usd": 500
+  },
+  "markets": {
+    "enabled_symbols": ["BTC/USDT", "ETH/USDT"],
+    "polymarket_market_types": ["15MIN_UP", "15MIN_DOWN"],
+    "refresh_interval_seconds": 5
+  },
+  "risk_management": {
+    "stop_loss_percentage": 0.15,
+    "take_profit_percentage": 0.90,
+    "max_daily_loss_usd": 1000,
+    "emergency_shutdown_loss_usd": 5000
+  },
+  "logging": {
+    "level": "INFO",
+    "log_file": "logs/bot.log",
+    "log_trades": true
+  },
+  "notifications": {
+    "enabled": false,
+    "webhook_url": ""
+  }
+}

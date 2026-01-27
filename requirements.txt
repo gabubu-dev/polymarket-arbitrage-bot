@@ -1,0 +1,28 @@
+# Core dependencies
+ccxt==4.2.25
+websockets==12.0
+aiohttp==3.9.1
+requests==2.31.0
+
+# Data processing
+pandas==2.1.4
+numpy==1.26.2
+
+# Polymarket
+py-clob-client==0.23.0
+
+# Configuration
+python-dotenv==1.0.0
+
+# Logging
+colorlog==6.8.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.23.2
+pytest-cov==4.1.0
+
+# Development
+black==23.12.1
+flake8==6.1.0
+mypy==1.7.1
