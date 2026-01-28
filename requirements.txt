@@ -26,6 +26,13 @@ aiohttp-retry==2.8.3
 # Data validation
 pydantic==2.5.3
 
+# Visualization
+plotly==5.18.0
+
+# Web Dashboard
+flask==3.0.0
+flask-cors==4.0.0
+
 # Testing
 pytest==7.4.3
 pytest-asyncio==0.23.2
@@ -39,3 +46,4 @@ mypy==1.7.1
 # Production
 supervisor==4.2.5
 sentry-sdk==1.39.2
+gunicorn==21.2.0

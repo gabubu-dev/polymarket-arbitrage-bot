@@ -1,119 +1,71 @@
 {
-  "polymarket": {
-    "api_key": "",
-    "api_secret": "",
-    "private_key": "",
-    "chain_id": 137,
-    "rpc_url": "https://polygon-rpc.com",
-    "max_retries": 3,
-    "retry_delay_seconds": 1
+  "api": {
+    "base_url": "https://clob.polymarket.com",
+    "gamma_api_url": "https://gamma-api.polymarket.com",
+    "rate_limit": 10,
+    "timeout": 30,
+    "retry_attempts": 3
   },
-  "exchanges": {
-    "binance": {
-      "api_key": "",
-      "api_secret": "",
-      "testnet": false,
-      "rate_limit": true
-    },
-    "coinbase": {
-      "api_key": "",
-      "api_secret": "",
-      "passphrase": ""
-    },
-    "bybit": {
-      "api_key": "",
-      "api_secret": "",
-      "testnet": false
-    }
-  },
-  "strategies": {
-    "active": "combined",
-    "latency": {
-      "enabled": true,
-      "min_divergence": 0.03,
-      "max_execution_time_ms": 500,
-      "markets": ["BTC_15MIN", "ETH_15MIN", "SOL_15MIN"],
-      "cooldown_seconds": 10
-    },
-    "spread": {
-      "enabled": true,
-      "min_spread_percent": 0.01,
-      "max_hold_time_seconds": 300,
-      "markets": ["BTC_USD", "ETH_USD"]
-    },
-    "momentum": {
-      "enabled": true,
-      "lookback_periods": 10,
-      "momentum_threshold": 0.02,
-      "confidence_threshold": 0.7,
-      "markets": ["BTC_15MIN", "ETH_15MIN", "BTC_1H", "ETH_1H"]
-    },
-    "whale": {
-      "enabled": true,
-      "min_order_size_usd": 5000,
-      "tracking_window_seconds": 300,
-      "follow_threshold": 0.6,
-      "markets": ["BTC_15MIN", "ETH_15MIN"]
-    }
+  "arbitrage": {
+    "divergence_threshold": 0.05,
+    "min_profit_threshold": 0.02,
+    "max_position_size": 1000,
+    "excluded_markets": []
   },
   "trading": {
-    "position_size_usd": 100,
-    "max_position_size_usd": 500,
     "max_positions": 5,
-    "compound_profits": false,
-    "min_profit_threshold": 0.02,
-    "slippage_tolerance": 0.005
+    "position_size_usd": 100,
+    "enabled": false
   },
-  "api_polling": {
-    "enabled": true,
-    "polymarket_interval_ms": 250,
-    "exchange_interval_ms": 100,
-    "orderbook_depth": 10,
-    "batch_requests": true,
-    "adaptive_rate_limit": true,
-    "max_requests_per_second": 10
-  },
-  "markets": {
-    "enabled_symbols": ["BTC/USDT", "ETH/USDT", "SOL/USDT"],
-    "polymarket_asset_map": {
-      "BTC/USDT": "BTC",
-      "ETH/USDT": "ETH",
-      "SOL/USDT": "SOL"
-    }
-  },
-  "risk_management": {
+  "risk": {
     "stop_loss_percentage": 0.15,
     "take_profit_percentage": 0.90,
-    "max_daily_loss_usd": 1000,
-    "emergency_shutdown_loss_usd": 5000,
-    "max_open_positions_per_market": 2,
-    "circuit_breaker_consecutive_losses": 5
+    "max_daily_loss_usd": 1000.0,
+    "emergency_shutdown_loss_usd": 5000.0
+  },
+  "polling": {
+    "max_requests_per_second": 10.0,
+    "strategy": "adaptive",
+    "enable_caching": true
+  },
+  "whale_tracking": {
+    "min_order_size_usd": 5000,
+    "tracking_window_seconds": 300,
+    "whale_address_threshold": 0.6,
+    "follow_threshold": 0.6
+  },
+  "sentiment": {
+    "volume_change_threshold": 0.5,
+    "momentum_threshold": 0.1,
+    "lookback_hours": 24
+  },
+  "data": {
+    "cache_enabled": true,
+    "cache_ttl": 300,
+    "database_path": "data/markets.db"
+  },
+  "dashboard": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "refresh_interval": 30,
+    "theme": "plotly_dark"
+  },
+  "visualization": {
+    "default_theme": "plotly_dark",
+    "chart_height": 500,
+    "chart_width": 1000
+  },
+  "wallets": {
+    "tracked_addresses": []
   },
   "logging": {
     "level": "INFO",
     "log_file": "logs/bot.log",
     "trade_log": "logs/trades.log",
-    "error_log": "logs/errors.log",
-    "performance_log": "logs/performance.log",
-    "log_rotation": "daily",
-    "max_log_days": 30
-  },
-  "notifications": {
-    "enabled": false,
-    "webhook_url": "",
-    "discord_webhook": "",
-    "telegram_bot_token": "",
-    "telegram_chat_id": "",
-    "notify_on_trade": true,
-    "notify_on_error": true,
-    "notify_daily_summary": true
+    "error_log": "logs/errors.log"
   },
   "production": {
-    "health_check_interval_seconds": 30,
-    "auto_restart": true,
     "max_restart_attempts": 5,
-    "memory_limit_mb": 512,
-    "enable_performance_monitoring": true,
-    "circuit_breaker_enabled": true
+    "health_check_interval": 60
   }
 }
