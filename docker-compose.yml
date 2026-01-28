@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  polymarket-bot:
+    build: .
+    container_name: polymarket-arbitrage-bot
+    restart: unless-stopped
+    
+    # Mount configuration and logs
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./logs:/app/logs
+      - ./data:/app/data
+    
+    # Environment variables (optional, use config.json instead)
+    environment:
+      - TZ=UTC
+    
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Network mode
+    network_mode: bridge
+
+# Optional: Add a monitoring service
+  # monitor:
+  #   image: grafana/grafana:latest
+  #   container_name: polymarket-monitor
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - grafana-storage:/var/lib/grafana
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=admin
+
+# volumes:
+#   grafana-storage:

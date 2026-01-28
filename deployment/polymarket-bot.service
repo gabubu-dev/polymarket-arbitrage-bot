@@ -1,0 +1,28 @@
+[Unit]
+Description=Polymarket Arbitrage Bot
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/polymarket-arbitrage-bot
+ExecStart=/path/to/polymarket-arbitrage-bot/venv/bin/python /path/to/polymarket-arbitrage-bot/bot.py
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+
+# Resource limits
+MemoryLimit=512M
+CPUQuota=100%
+
+# Logging
+StandardOutput=append:/path/to/polymarket-arbitrage-bot/logs/systemd.log
+StandardError=append:/path/to/polymarket-arbitrage-bot/logs/systemd-error.log
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
