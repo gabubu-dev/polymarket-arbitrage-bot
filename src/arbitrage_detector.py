@@ -1,15 +1,23 @@
 """
-Arbitrage opportunity detection.
+Arbitrage opportunity detection with spike-based strategy.
 
-Compares exchange prices with Polymarket market odds to identify
-profitable arbitrage opportunities.
+Detects price spikes on exchanges and identifies opportunities
+to trade on Polymarket's 15-minute markets before odds adjust.
 """
 
 import logging
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Deque
 from datetime import datetime, timedelta
 from dataclasses import dataclass
+from collections import deque
 
+
+@dataclass
+class PriceSnapshot:
+    """Historical price snapshot for velocity calculation."""
+    timestamp: datetime
+    price: float
+    
 
 @dataclass
 class ArbitrageOpportunity:
@@ -30,28 +38,124 @@ class ArbitrageOpportunity:
 
 class ArbitrageDetector:
     """
-    Detects arbitrage opportunities between exchanges and Polymarket.
+    Detects arbitrage opportunities using spike detection strategy.
     
-    Monitors price divergences and generates trading signals when
-    opportunities exceed configured thresholds.
+    Monitors exchange prices for significant spikes and identifies
+    opportunities on Polymarket before odds adjust.
+    
+    Strategy: When crypto price spikes 1-2%+ in <10 seconds,
+    bet on corresponding direction on Polymarket's 15-min markets.
     """
     
-    def __init__(self, divergence_threshold: float = 0.05,
-                 min_profit_threshold: float = 0.02):
+    def __init__(self, spike_threshold: float = 0.015,
+                 min_profit_threshold: float = 0.02,
+                 price_history_seconds: int = 30):
         """
-        Initialize arbitrage detector.
+        Initialize spike-based arbitrage detector.
         
         Args:
-            divergence_threshold: Minimum price divergence to trigger signal
+            spike_threshold: Minimum price change % to trigger (e.g., 0.015 = 1.5%)
             min_profit_threshold: Minimum expected profit percentage
+            price_history_seconds: How long to track price history for velocity
         """
         self.logger = logging.getLogger("ArbitrageDetector")
-        self.divergence_threshold = divergence_threshold
+        self.spike_threshold = spike_threshold
         self.min_profit_threshold = min_profit_threshold
+        self.price_history_window = timedelta(seconds=price_history_seconds)
+        
+        # Track price history for each symbol
+        self.price_history: Dict[str, Deque[PriceSnapshot]] = {}
         
         # Track recent opportunities to avoid duplicates
         self.recent_opportunities: List[ArbitrageOpportunity] = []
-        self.opportunity_cooldown = timedelta(seconds=30)
+        self.opportunity_cooldown = timedelta(seconds=60)  # Longer cooldown for spike strategy
+    
+    def update_price(self, symbol: str, price: float) -> None:
+        """
+        Update price history for a symbol.
+        
+        Args:
+            symbol: Trading symbol (e.g., 'BTC/USDT')
+            price: Current price
+        """
+        now = datetime.now()
+        
+        # Initialize deque if not exists
+        if symbol not in self.price_history:
+            self.price_history[symbol] = deque(maxlen=100)
+        
+        # Add current price
+        self.price_history[symbol].append(PriceSnapshot(now, price))
+        
+        # Clean old entries
+        self._cleanup_old_prices(symbol)
+    
+    def _cleanup_old_prices(self, symbol: str) -> None:
+        """Remove price snapshots older than history window."""
+        if symbol not in self.price_history:
+            return
+        
+        cutoff = datetime.now() - self.price_history_window
+        history = self.price_history[symbol]
+        
+        # Remove old entries from left
+        while history and history[0].timestamp < cutoff:
+            history.popleft()
+    
+    def detect_spike(self, symbol: str, current_price: float,
+                    window_seconds: int = 10) -> Optional[Dict[str, Any]]:
+        """
+        Detect if current price represents a significant spike.
+        
+        Args:
+            symbol: Trading symbol
+            current_price: Current price
+            window_seconds: Time window to check for spike (default 10s)
+            
+        Returns:
+            Dictionary with spike info if detected, None otherwise
+        """
+        if symbol not in self.price_history or len(self.price_history[symbol]) < 2:
+            return None
+        
+        now = datetime.now()
+        cutoff = now - timedelta(seconds=window_seconds)
+        
+        # Get oldest price within window
+        history = self.price_history[symbol]
+        baseline_price = None
+        
+        for snapshot in history:
+            if snapshot.timestamp >= cutoff:
+                baseline_price = snapshot.price
+                break
+        
+        if baseline_price is None or baseline_price == 0:
+            return None
+        
+        # Calculate price change
+        price_change = (current_price - baseline_price) / baseline_price
+        
+        # Check if spike exceeds threshold
+        if abs(price_change) >= self.spike_threshold:
+            direction = "up" if price_change > 0 else "down"
+            
+            self.logger.info(
+                f"Spike detected: {symbol} moved {price_change:.2%} in {window_seconds}s "
+                f"({baseline_price} -> {current_price}) - Direction: {direction.upper()}"
+            )
+            
+            return {
+                'symbol': symbol,
+                'direction': direction,
+                'price_change_pct': price_change,
+                'baseline_price': baseline_price,
+                'current_price': current_price,
+                'window_seconds': window_seconds,
+                'timestamp': now
+            }
+        
+        return None
     
     def detect_opportunity(self, symbol: str, exchange: str,
                           exchange_price: float, 
@@ -61,31 +165,42 @@ class ArbitrageDetector:
         """
         Check if current prices represent an arbitrage opportunity.
         
-        The key insight: When BTC/ETH makes a sharp move on exchanges,
-        Polymarket odds often lag by 30-90 seconds. This creates a window
-        where we can bet at "stale" odds before the market corrects.
+        Strategy: When price spikes on exchange but Polymarket odds
+        haven't adjusted yet, there's an arbitrage window.
         
         Args:
             symbol: Trading symbol (e.g., 'BTC/USDT')
             exchange: Exchange name
             exchange_price: Current exchange price
-            polymarket_market_id: Polymarket market ID
-            polymarket_odds: Current Polymarket odds (0-1)
+            polymarket_market_id: Polymarket market ID or token ID
+            polymarket_odds: Current Polymarket mid price (0-1)
             direction: Expected direction ('up' or 'down')
             
         Returns:
             ArbitrageOpportunity if detected, None otherwise
         """
-        # Calculate divergence
-        # For "up" markets: high exchange momentum + low Polymarket odds = opportunity
-        # For "down" markets: low exchange momentum + high Polymarket odds = opportunity
+        # First, update price history
+        self.update_price(symbol, exchange_price)
         
-        divergence = self._calculate_divergence(
-            exchange_price, polymarket_odds, direction
+        # Detect spike
+        spike_info = self.detect_spike(symbol, exchange_price, window_seconds=10)
+        
+        if spike_info is None:
+            return None  # No spike detected
+        
+        # Check if spike direction matches opportunity direction
+        if spike_info['direction'] != direction:
+            return None  # Spike in wrong direction
+        
+        # Calculate divergence between spike magnitude and current Polymarket odds
+        divergence = self._calculate_spike_divergence(
+            spike_info['price_change_pct'], polymarket_odds, direction
         )
         
-        # Check if divergence exceeds threshold
-        if abs(divergence) < self.divergence_threshold:
+        # Check if divergence suggests a viable opportunity
+        # Minimum divergence should be at least half the spike threshold
+        min_divergence = self.spike_threshold * 0.5
+        if abs(divergence) < min_divergence:
             return None
         
         # Calculate expected profit
@@ -126,35 +241,38 @@ class ArbitrageDetector:
         
         return opportunity
     
-    def _calculate_divergence(self, exchange_price: float, 
-                             polymarket_odds: float,
-                             direction: str) -> float:
+    def _calculate_spike_divergence(self, spike_pct: float, 
+                                   polymarket_odds: float,
+                                   direction: str) -> float:
         """
-        Calculate price divergence between exchange and Polymarket.
+        Calculate divergence between spike magnitude and Polymarket odds.
         
-        This is simplified logic. In reality, you'd track recent price movement
-        velocity, compare with historical patterns, etc.
+        Logic:
+        - For UP spike: Large positive spike + low YES odds = high divergence
+        - For DOWN spike: Large negative spike + low NO odds (high YES) = high divergence
         
         Args:
-            exchange_price: Current exchange price
-            polymarket_odds: Polymarket odds (0-1)
-            direction: Expected direction
+            spike_pct: Price change percentage (positive or negative)
+            polymarket_odds: Current Polymarket mid price for YES outcome (0-1)
+            direction: 'up' or 'down'
             
         Returns:
-            Divergence value (positive = opportunity)
+            Divergence score (higher = better opportunity)
         """
-        # Simplified divergence calculation
-        # Real implementation would track:
-        # - Price velocity (how fast price is moving)
-        # - Historical correlation between exchange moves and Polymarket updates
-        # - Time since last significant price change
+        spike_magnitude = abs(spike_pct)
         
         if direction == "up":
-            # If price is rising but odds are low, that's divergence
-            return (1.0 - polymarket_odds) * 2  # Scale to make it more intuitive
+            # For UP markets: we want to BUY YES
+            # Good opportunity: Large spike + low YES price (cheap to buy)
+            # Divergence = spike magnitude * how cheap YES is
+            divergence = spike_magnitude * (1.0 - polymarket_odds)
         else:
-            # If price is falling but odds are high, that's divergence
-            return polymarket_odds * 2
+            # For DOWN markets: we want to BUY NO (or SELL YES)
+            # Good opportunity: Large drop + low NO price (high YES price)
+            # Divergence = spike magnitude * how cheap NO is
+            divergence = spike_magnitude * polymarket_odds
+        
+        return divergence
     
     def _estimate_profit(self, divergence: float, odds: float) -> float:
         """
