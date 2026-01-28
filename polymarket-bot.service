@@ -1,0 +1,32 @@
+[Unit]
+Description=Polymarket Arbitrage Bot
+After=network.target
+
+[Service]
+Type=simple
+User=trading
+WorkingDirectory=/home/trading/polymarket-arbitrage-bot
+Environment=PYTHONPATH=/home/trading/polymarket-arbitrage-bot
+Environment=CONFIG_PATH=/home/trading/polymarket-arbitrage-bot/config.json
+Environment=LOG_LEVEL=INFO
+
+# Use the appropriate Python interpreter
+ExecStart=/usr/bin/python3 /home/trading/polymarket-arbitrage-bot/bot_enhanced.py --strategy combined
+
+# Restart policy
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Resource limits
+MemoryLimit=512M
+CPUQuota=50%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=polymarket-bot
+
+[Install]
+WantedBy=multi-user.target

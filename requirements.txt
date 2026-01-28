@@ -17,6 +17,15 @@ python-dotenv==1.0.0
 # Logging
 colorlog==6.8.0
 
+# Async utilities
+asyncio-mqtt==0.16.1
+
+# HTTP client for API polling
+aiohttp-retry==2.8.3
+
+# Data validation
+pydantic==2.5.3
+
 # Testing
 pytest==7.4.3
 pytest-asyncio==0.23.2
@@ -26,3 +35,7 @@ pytest-cov==4.1.0
 black==23.12.1
 flake8==6.1.0
 mypy==1.7.1
+
+# Production
+supervisor==4.2.5
+sentry-sdk==1.39.2
