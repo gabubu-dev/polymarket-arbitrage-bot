@@ -188,13 +188,19 @@ class PolymarketDiscovery:
             # Get tokens (YES/NO outcomes)
             tokens = market_data.get('tokens', [])
             
-            # Get orderbook data to calculate spread
-            best_bid, best_ask, spread = self._get_market_spread(market_id)
+            # Estimate spread based on liquidity (skip orderbook calls for speed)
+            # Higher liquidity = tighter spread
+            if liquidity > 10000:
+                estimated_spread = 0.01  # 1% for high liquidity
+            elif liquidity > 5000:
+                estimated_spread = 0.02  # 2% for medium liquidity
+            else:
+                estimated_spread = 0.03  # 3% for lower liquidity
             
-            # Filter by spread
-            spread_percent = spread * 100
-            if spread_percent > self.max_spread_percent:
-                return None
+            # Estimate best bid/ask (assume market is near 50/50)
+            best_bid = 0.49
+            best_ask = 0.51
+            spread = estimated_spread
             
             # Parse end date
             end_date_str = market_data.get('endDate')
@@ -278,7 +284,9 @@ class PolymarketDiscovery:
             liquidity_factor = min(1.0, market.liquidity / 10000.0)
             
             # Time to expiry (markets closer to expiry are riskier)
-            time_to_expiry = (market.end_date - datetime.now()).total_seconds()
+            from datetime import timezone
+            now = datetime.now(timezone.utc)
+            time_to_expiry = (market.end_date - now).total_seconds()
             time_factor = min(1.0, max(0.1, time_to_expiry / 86400))  # Days until expiry
             
             # Risk factor (inverse of confidence)

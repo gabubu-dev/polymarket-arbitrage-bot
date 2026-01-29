@@ -46,6 +46,7 @@ from whale_tracker import WhaleTracker, WhaleOrder, WhaleOrderSide
 from latency_arbitrage import LatencyArbitrageEngine, SpreadLockEngine
 from strategy_orchestrator import StrategyOrchestrator, StrategyType, StrategyOpportunity
 from paper_trader import PaperTrader, PaperTrade
+from market_discovery import PolymarketDiscovery
 
 
 class EnhancedArbitrageBot:
@@ -175,6 +176,45 @@ class EnhancedArbitrageBot:
             position_size_usd=self.config.trading.position_size_usd,
             paper_trader=self.paper_trader
         )
+        
+        # Market Discovery - fetch real Polymarket markets
+        if self.config.markets.use_dynamic_discovery:
+            self.logger.info("🔍 Discovering real Polymarket markets...")
+            self.market_discovery = PolymarketDiscovery(config=self.config._raw_config)
+            
+            # Use fallback markets if discovery fails or takes too long
+            fallback_markets = [
+                "Trump vs Harris 2024",
+                "Will BTC hit $150k in 2025?",
+                "AI Safety regulation by 2026",
+                "Fed rate decision March 2025",
+                "Super Bowl 2025 winner"
+            ]
+            
+            try:
+                import signal
+                def timeout_handler(signum, frame):
+                    raise TimeoutError("Market discovery timeout")
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(10)  # 10 second timeout
+                
+                markets = self.market_discovery.fetch_active_markets(force_refresh=True)
+                signal.alarm(0)  # Cancel alarm
+                
+                if markets:
+                    # Update enabled_symbols with discovered market questions
+                    self.config.markets.enabled_symbols = [m.question for m in markets[:20]]  # Top 20 markets
+                    self.logger.info(f"✅ Discovered {len(markets)} markets, monitoring top {len(self.config.markets.enabled_symbols)}")
+                else:
+                    self.logger.warning("⚠️ No markets discovered, using fallback markets")
+                    self.config.markets.enabled_symbols = fallback_markets
+            except Exception as e:
+                self.logger.error(f"❌ Market discovery failed: {e}")
+                self.logger.info(f"Using {len(fallback_markets)} fallback markets")
+                self.config.markets.enabled_symbols = fallback_markets
+                signal.alarm(0)  # Cancel alarm if exception
+        else:
+            self.market_discovery = None
         
         # Enhanced components
         self._init_enhanced_components()

@@ -46,6 +46,7 @@ class MarketsConfig:
     enabled_symbols: list[str] = field(default_factory=lambda: ["BTC/USDT", "ETH/USDT"])
     polymarket_market_types: list[str] = field(default_factory=lambda: ["15MIN_UP", "15MIN_DOWN"])
     refresh_interval_seconds: int = 5
+    use_dynamic_discovery: bool = True  # Discover real markets from Polymarket API
 
 
 @dataclass
@@ -249,8 +250,8 @@ class Config:
         if self.risk_management.stop_loss_percentage <= 0 or self.risk_management.stop_loss_percentage >= 1:
             raise ValueError("stop_loss_percentage must be between 0 and 1")
         
-        if not self.markets.enabled_symbols:
-            raise ValueError("At least one symbol must be enabled")
+        if not self.markets.enabled_symbols and not self.markets.use_dynamic_discovery:
+            raise ValueError("At least one symbol must be enabled or use_dynamic_discovery must be true")
     
     def get_exchange_config(self, exchange_name: str) -> Optional[ExchangeConfig]:
         """
