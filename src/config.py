@@ -63,6 +63,8 @@ class LoggingConfig:
     level: str = "INFO"
     log_file: str = "logs/bot.log"
     log_trades: bool = True
+    trade_log: str = "logs/trades.log"
+    error_log: str = "logs/errors.log"
 
 
 @dataclass
@@ -70,6 +72,46 @@ class NotificationsConfig:
     """Notification settings."""
     enabled: bool = False
     webhook_url: str = ""
+
+
+@dataclass
+class StrategyConfig:
+    """Base strategy configuration."""
+    enabled: bool = True
+    min_divergence: float = 0.03
+    max_execution_time_ms: int = 500
+    cooldown_seconds: int = 10
+    min_spread_percent: float = 0.01
+    lookback_periods: int = 10
+    momentum_threshold: float = 0.02
+    confidence_threshold: float = 0.7
+    min_order_size_usd: float = 5000.0
+    tracking_window_seconds: int = 300
+    follow_threshold: float = 0.6
+
+
+@dataclass
+class StrategiesConfig:
+    """Configuration for all trading strategies."""
+    latency: StrategyConfig = field(default_factory=StrategyConfig)
+    spread: StrategyConfig = field(default_factory=StrategyConfig)
+    momentum: StrategyConfig = field(default_factory=StrategyConfig)
+    whale: StrategyConfig = field(default_factory=StrategyConfig)
+
+
+@dataclass
+class ProductionConfig:
+    """Production deployment configuration."""
+    max_restart_attempts: int = 5
+    health_check_interval: int = 60
+
+
+@dataclass
+class TelegramConfig:
+    """Telegram notification configuration."""
+    bot_token: str = ""
+    chat_id: str = ""
+    alerts_enabled: bool = False
 
 
 class Config:
@@ -98,6 +140,9 @@ class Config:
         self.risk_management = RiskManagementConfig()
         self.logging = LoggingConfig()
         self.notifications = NotificationsConfig()
+        self.strategies = StrategiesConfig()
+        self.production = ProductionConfig()
+        self.telegram = TelegramConfig()
         
         self.load()
     
@@ -149,6 +194,30 @@ class Config:
         # Parse notifications config
         if 'notifications' in self._raw_config:
             self.notifications = NotificationsConfig(**self._raw_config['notifications'])
+        
+        # Parse strategies config
+        if 'strategies' in self._raw_config:
+            strategies_data = self._raw_config['strategies']
+            # Create individual strategy configs
+            latency_config = StrategyConfig(**strategies_data.get('latency', {}))
+            spread_config = StrategyConfig(**strategies_data.get('spread', {}))
+            momentum_config = StrategyConfig(**strategies_data.get('momentum', {}))
+            whale_config = StrategyConfig(**strategies_data.get('whale', {}))
+            
+            self.strategies = StrategiesConfig(
+                latency=latency_config,
+                spread=spread_config,
+                momentum=momentum_config,
+                whale=whale_config
+            )
+        
+        # Parse production config
+        if 'production' in self._raw_config:
+            self.production = ProductionConfig(**self._raw_config['production'])
+        
+        # Parse telegram config
+        if 'telegram' in self._raw_config:
+            self.telegram = TelegramConfig(**self._raw_config['telegram'])
     
     def _load_from_env(self) -> None:
         """Load configuration from environment variables."""

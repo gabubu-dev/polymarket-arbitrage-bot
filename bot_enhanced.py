@@ -157,7 +157,7 @@ class EnhancedArbitrageBot:
         
         # Legacy detector (for backward compatibility)
         self.detector = ArbitrageDetector(
-            divergence_threshold=self.config.trading.divergence_threshold,
+            spike_threshold=self.config.trading.divergence_threshold,
             min_profit_threshold=self.config.trading.min_profit_threshold
         )
         
@@ -214,9 +214,21 @@ class EnhancedArbitrageBot:
         )
         
         # Strategy orchestrator
-        self.orchestrator = StrategyOrchestrator(
-            config=getattr(self.config, 'strategies', {})
-        )
+        # Convert StrategiesConfig to dict for orchestrator
+        strategies_dict = {}
+        if hasattr(self.config, 'strategies'):
+            for strategy_name in ['latency', 'spread', 'momentum', 'whale']:
+                if hasattr(self.config.strategies, strategy_name):
+                    strategy_config = getattr(self.config.strategies, strategy_name)
+                    strategies_dict[strategy_name] = {
+                        'enabled': getattr(strategy_config, 'enabled', True),
+                        'priority': 5,
+                        'max_positions': 2,
+                        'capital_allocation': 0.25,
+                        'min_opportunity_score': 0.6
+                    }
+        
+        self.orchestrator = StrategyOrchestrator(config=strategies_dict)
         
         # Track active markets
         self._active_markets: Dict[str, Dict] = {}
