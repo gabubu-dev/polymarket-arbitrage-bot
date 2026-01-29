@@ -492,11 +492,8 @@ class EnhancedArbitrageBot:
             self.logger.info(f"Virtual Balance: ${stats['current_balance']:.2f}")
             self.logger.info("=" * 60)
             
-            # Send Telegram startup notification
-            try:
-                await self.paper_trader.send_startup_notification()
-            except Exception as e:
-                self.logger.warning(f"Could not send startup notification: {e}")
+            # DISABLED: Startup notifications disabled per qippu's request
+            # Only hourly balance reports and transaction alerts are sent
         
         self.running = True
         

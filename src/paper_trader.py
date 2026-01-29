@@ -497,10 +497,21 @@ class PaperTrader:
             f"Reason: {reason}"
         )
         
-        # Check for Telegram alerts
-        asyncio.create_task(self._check_telegram_alerts(
-            previous_balance=self.portfolio.current_balance - trade.size_filled - trade.pnl
-        ))
+        # Send transaction alert to Telegram
+        if self.telegram_alerter and self.telegram_alerter.enabled:
+            asyncio.create_task(self.telegram_alerter.send_transaction_alert(
+                trade_id=trade.trade_id,
+                market=trade.market_name,
+                direction=trade.direction,
+                size=trade.size_filled,
+                entry_price=trade.entry_price,
+                exit_price=actual_exit,
+                pnl=trade.pnl,
+                strategy=trade.strategy
+            ))
+        
+        # Check for hourly report
+        asyncio.create_task(self._check_hourly_report())
         
         return trade
     
@@ -531,6 +542,23 @@ class PaperTrader:
             )
         except Exception as e:
             self.logger.error(f"Error checking Telegram alerts: {e}")
+    
+    async def _check_hourly_report(self) -> None:
+        """
+        Check if we should send hourly balance report.
+        """
+        try:
+            if self.telegram_alerter and self.telegram_alerter.enabled:
+                stats = self.get_performance_stats()
+                await self.telegram_alerter.check_and_send_hourly_report(
+                    current_balance=self.portfolio.current_balance,
+                    starting_balance=self.portfolio.initial_balance,
+                    total_pnl=stats['total_pnl'],
+                    win_rate=stats['win_rate'],
+                    total_trades=stats['total_trades']
+                )
+        except Exception as e:
+            self.logger.error(f"Error checking hourly report: {e}")
     
     def get_open_positions(self) -> List[PaperTrade]:
         """Get all open paper trades."""
