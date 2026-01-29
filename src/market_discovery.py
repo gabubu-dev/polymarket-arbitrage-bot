@@ -29,6 +29,7 @@ class MarketOpportunity:
     best_bid: float
     best_ask: float
     spread: float
+    outcome_prices: List[float] = None  # [yes_price, no_price] from live market
     
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization."""
@@ -45,7 +46,8 @@ class MarketOpportunity:
             'confidence': self.confidence,
             'best_bid': self.best_bid,
             'best_ask': self.best_ask,
-            'spread': self.spread
+            'spread': self.spread,
+            'outcome_prices': self.outcome_prices
         }
 
 
@@ -188,19 +190,23 @@ class PolymarketDiscovery:
             # Get tokens (YES/NO outcomes)
             tokens = market_data.get('tokens', [])
             
-            # Estimate spread based on liquidity (skip orderbook calls for speed)
-            # Higher liquidity = tighter spread
-            if liquidity > 10000:
-                estimated_spread = 0.01  # 1% for high liquidity
-            elif liquidity > 5000:
-                estimated_spread = 0.02  # 2% for medium liquidity
-            else:
-                estimated_spread = 0.03  # 3% for lower liquidity
+            # Get real orderbook data from API response
+            best_bid = float(market_data.get('bestBid', 0.0))
+            best_ask = float(market_data.get('bestAsk', 1.0))
             
-            # Estimate best bid/ask (assume market is near 50/50)
-            best_bid = 0.49
-            best_ask = 0.51
-            spread = estimated_spread
+            # Calculate actual spread
+            if best_bid > 0 and best_ask < 1:
+                spread = best_ask - best_bid
+            else:
+                # Fallback: estimate based on liquidity if data missing
+                if liquidity > 10000:
+                    spread = 0.01
+                elif liquidity > 5000:
+                    spread = 0.02
+                else:
+                    spread = 0.03
+                best_bid = 0.49
+                best_ask = 0.51
             
             # Parse end date
             end_date_str = market_data.get('endDate')
@@ -211,6 +217,18 @@ class PolymarketDiscovery:
             
             # Calculate confidence based on liquidity and volume
             confidence = min(1.0, (liquidity / 5000.0) * 0.5 + (volume_24h / 10000.0) * 0.5)
+            
+            # Parse outcome prices (YES/NO probabilities)
+            outcome_prices = []
+            outcome_prices_str = market_data.get('outcomePrices', '[]')
+            if isinstance(outcome_prices_str, str):
+                import json
+                try:
+                    outcome_prices = [float(p) for p in json.loads(outcome_prices_str)]
+                except:
+                    outcome_prices = []
+            elif isinstance(outcome_prices_str, list):
+                outcome_prices = [float(p) for p in outcome_prices_str]
             
             return MarketOpportunity(
                 market_id=market_id,
@@ -225,7 +243,8 @@ class PolymarketDiscovery:
                 confidence=confidence,
                 best_bid=best_bid,
                 best_ask=best_ask,
-                spread=spread
+                spread=spread,
+                outcome_prices=outcome_prices
             )
             
         except Exception as e:
