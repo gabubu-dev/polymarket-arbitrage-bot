@@ -198,7 +198,6 @@ class PaperTrader:
         self.telegram_alerter = TelegramAlerter(
             bot_token=telegram_bot_token,
             chat_id=telegram_chat_id,
-            starting_balance=self.portfolio.initial_balance,
             data_dir=data_dir
         )
         

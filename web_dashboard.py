@@ -34,90 +34,106 @@ async def dashboard(request: Request):
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Polymarket Bot Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         async function refreshData() {
-            const [markets, stats] = await Promise.all([
-                fetch('/api/markets').then(r => r.json()),
-                fetch('/api/stats').then(r => r.json())
-            ]);
-            
-            document.getElementById('balance').textContent = `$${stats.balance.toFixed(2)}`;
-            document.getElementById('pnl').textContent = `$${stats.pnl >= 0 ? '+' : ''}${stats.pnl.toFixed(2)}`;
-            document.getElementById('winrate').textContent = `${stats.win_rate.toFixed(1)}%`;
-            document.getElementById('trades').textContent = stats.total_trades;
-            
-            const marketsList = document.getElementById('markets');
-            marketsList.innerHTML = markets.slice(0, 10).map((m, i) => `
-                <div class="border-b border-gray-700 py-4">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <h3 class="font-semibold text-white">${i+1}. ${m.question}</h3>
-                            <div class="mt-2 space-y-1 text-sm">
-                                <div class="flex gap-4">
-                                    <span class="text-gray-400">Current:</span>
-                                    <span class="text-green-400">YES: ${(m.outcome_prices[0] * 100).toFixed(1)}%</span>
-                                    <span class="text-red-400">NO: ${(m.outcome_prices[1] * 100).toFixed(1)}%</span>
-                                </div>
-                                <div class="flex gap-4">
-                                    <span class="text-gray-400">Spread:</span>
-                                    <span class="text-blue-400">${(m.spread * 100).toFixed(2)}%</span>
-                                    <span class="text-gray-400">Volume:</span>
-                                    <span class="text-yellow-400">$${m.volume_24h.toLocaleString()}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-2xl font-bold text-purple-400">${m.profitability_score.toFixed(3)}</div>
-                            <div class="text-xs text-gray-400">Score</div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
+            try {
+                const [markets, stats] = await Promise.all([
+                    fetch('/api/markets').then(r => r.json()),
+                    fetch('/api/stats').then(r => r.json())
+                ]);
+                
+                document.getElementById('balance').textContent = '$' + stats.balance.toFixed(2);
+                document.getElementById('pnl').textContent = (stats.pnl >= 0 ? '+' : '') + '$' + stats.pnl.toFixed(2);
+                document.getElementById('pnl').className = 'text-2xl sm:text-3xl font-bold ' + (stats.pnl >= 0 ? 'text-green-400' : 'text-red-400');
+                document.getElementById('winrate').textContent = stats.win_rate.toFixed(1) + '%';
+                document.getElementById('trades').textContent = stats.total_trades;
+                
+                const marketsList = document.getElementById('markets');
+                if (markets.error) {
+                    marketsList.innerHTML = '<div class="text-red-400">Error loading markets</div>';
+                    return;
+                }
+                
+                marketsList.innerHTML = markets.slice(0, 10).map(function(m, i) {
+                    const yesPrice = m.outcome_prices && m.outcome_prices[0] ? (m.outcome_prices[0] * 100).toFixed(1) : '0.0';
+                    const noPrice = m.outcome_prices && m.outcome_prices[1] ? (m.outcome_prices[1] * 100).toFixed(1) : '0.0';
+                    const spread = (m.spread * 100).toFixed(2);
+                    const volume = m.volume_24h ? m.volume_24h.toLocaleString() : '0';
+                    const score = m.profitability_score ? m.profitability_score.toFixed(3) : '0.000';
+                    
+                    return '<div class="border-b border-gray-700 py-3 sm:py-4">' +
+                        '<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">' +
+                            '<div class="flex-1 min-w-0">' +
+                                '<h3 class="font-semibold text-white text-sm sm:text-base truncate">' + (i+1) + '. ' + m.question + '</h3>' +
+                                '<div class="mt-2 space-y-1 text-xs sm:text-sm">' +
+                                    '<div class="flex flex-wrap gap-x-3 gap-y-1">' +
+                                        '<span class="text-gray-400">Current:</span>' +
+                                        '<span class="text-green-400">YES: ' + yesPrice + '%</span>' +
+                                        '<span class="text-red-400">NO: ' + noPrice + '%</span>' +
+                                    '</div>' +
+                                    '<div class="flex flex-wrap gap-x-3 gap-y-1">' +
+                                        '<span class="text-gray-400">Spread:</span>' +
+                                        '<span class="text-blue-400">' + spread + '%</span>' +
+                                        '<span class="text-gray-400">Vol:</span>' +
+                                        '<span class="text-yellow-400">$' + volume + '</span>' +
+                                    '</div>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="text-left sm:text-right mt-2 sm:mt-0">' +
+                                '<div class="text-xl sm:text-2xl font-bold text-purple-400">' + score + '</div>' +
+                                '<div class="text-xs text-gray-400">Score</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>';
+                }).join('');
+            } catch (e) {
+                console.error('Error refreshing data:', e);
+            }
         }
         
         setInterval(refreshData, 5000);
         refreshData();
     </script>
 </head>
-<body class="bg-gray-900 text-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <div class="mb-8">
-            <h1 class="text-4xl font-bold text-white mb-2">📊 Polymarket Trading Bot</h1>
-            <p class="text-gray-400">Paper Trading Mode - Real-time market opportunities</p>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-6xl">
+        <div class="mb-4 sm:mb-8">
+            <h1 class="text-2xl sm:text-4xl font-bold text-white mb-1 sm:mb-2">📊 Polymarket Trading Bot</h1>
+            <p class="text-sm sm:text-base text-gray-400">Paper Trading Mode - Real-time market opportunities</p>
         </div>
         
         <!-- Stats Cards -->
-        <div class="grid grid-cols-4 gap-4 mb-8">
-            <div class="bg-gray-800 rounded-lg p-6">
-                <div class="text-gray-400 text-sm mb-1">Balance</div>
-                <div id="balance" class="text-3xl font-bold text-green-400">$10,000</div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-8">
+            <div class="bg-gray-800 rounded-lg p-3 sm:p-6">
+                <div class="text-gray-400 text-xs sm:text-sm mb-1">Balance</div>
+                <div id="balance" class="text-xl sm:text-3xl font-bold text-green-400">$10,000</div>
             </div>
-            <div class="bg-gray-800 rounded-lg p-6">
-                <div class="text-gray-400 text-sm mb-1">P&L</div>
-                <div id="pnl" class="text-3xl font-bold text-blue-400">$0.00</div>
+            <div class="bg-gray-800 rounded-lg p-3 sm:p-6">
+                <div class="text-gray-400 text-xs sm:text-sm mb-1">P&L</div>
+                <div id="pnl" class="text-xl sm:text-3xl font-bold text-blue-400">$0.00</div>
             </div>
-            <div class="bg-gray-800 rounded-lg p-6">
-                <div class="text-gray-400 text-sm mb-1">Win Rate</div>
-                <div id="winrate" class="text-3xl font-bold text-purple-400">0%</div>
+            <div class="bg-gray-800 rounded-lg p-3 sm:p-6">
+                <div class="text-gray-400 text-xs sm:text-sm mb-1">Win Rate</div>
+                <div id="winrate" class="text-xl sm:text-3xl font-bold text-purple-400">0%</div>
             </div>
-            <div class="bg-gray-800 rounded-lg p-6">
-                <div class="text-gray-400 text-sm mb-1">Total Trades</div>
-                <div id="trades" class="text-3xl font-bold text-yellow-400">0</div>
+            <div class="bg-gray-800 rounded-lg p-3 sm:p-6">
+                <div class="text-gray-400 text-xs sm:text-sm mb-1">Trades</div>
+                <div id="trades" class="text-xl sm:text-3xl font-bold text-yellow-400">0</div>
             </div>
         </div>
         
         <!-- Markets List -->
-        <div class="bg-gray-800 rounded-lg p-6">
-            <h2 class="text-2xl font-bold text-white mb-4">🎯 Top Trading Opportunities</h2>
-            <div id="markets" class="space-y-4">
-                Loading markets...
+        <div class="bg-gray-800 rounded-lg p-3 sm:p-6">
+            <h2 class="text-lg sm:text-2xl font-bold text-white mb-3 sm:mb-4">🎯 Top Trading Opportunities</h2>
+            <div id="markets" class="space-y-2 sm:space-y-4">
+                <div class="text-gray-400">Loading markets...</div>
             </div>
         </div>
         
-        <div class="mt-8 text-center text-gray-500 text-sm">
+        <div class="mt-4 sm:mt-8 text-center text-gray-500 text-xs sm:text-sm">
             Auto-refreshes every 5 seconds
         </div>
     </div>
