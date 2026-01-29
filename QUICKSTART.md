@@ -1,193 +1,195 @@
-# Quick Start Guide
+# 🚀 Quick Start - Polymarket Data Access
 
-## Prerequisites
-
-- Python 3.9 or higher
-- Polymarket account with API access
-- Exchange API keys (Binance, Coinbase, etc.)
-- Some capital to trade (start small!)
-
-## Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/gabubu-dev/polymarket-arbitrage-bot.git
-cd polymarket-arbitrage-bot
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-## Configuration
-
-1. Copy the example configuration:
-```bash
-cp config.example.json config.json
-```
-
-2. Edit `config.json` with your API credentials:
-
-```json
-{
-  "polymarket": {
-    "api_key": "your_polymarket_api_key",
-    "api_secret": "your_polymarket_api_secret",
-    "private_key": "your_ethereum_private_key",
-    "chain_id": 137
-  },
-  "exchanges": {
-    "binance": {
-      "api_key": "your_binance_api_key",
-      "api_secret": "your_binance_api_secret",
-      "testnet": true
-    }
-  }
-}
-```
-
-**Important**: Start with testnet mode enabled to test without risking real funds!
-
-## Running the Bot
-
-```bash
-# Make sure you're in the virtual environment
-source venv/bin/activate
-
-# Run the bot
-python bot.py
-```
-
-You should see output like:
-```
-2025-01-27 12:00:00 - ArbitrageBot - INFO - Starting Polymarket Arbitrage Bot
-2025-01-27 12:00:01 - ArbitrageBot - INFO - Monitoring symbols: ['BTC/USDT', 'ETH/USDT']
-2025-01-27 12:00:01 - ExchangeMonitor.binance - INFO - Starting monitor for binance
-```
-
-## Testing
-
-Run the test suite to verify everything works:
-
-```bash
-pytest tests/ -v
-```
-
-## Understanding the Strategy
-
-The bot looks for timing gaps between:
-1. **Exchange price movements** - BTC/ETH price changes on Binance/Coinbase
-2. **Polymarket market odds** - Prediction market odds on 15-minute crypto markets
-
-When BTC makes a sharp move on an exchange, Polymarket odds often lag by 30-90 seconds. The bot detects this divergence and takes positions at "stale" odds before the market corrects.
-
-### Example Trade Flow
-
-1. BTC price jumps 2% on Binance
-2. Bot detects Polymarket "BTC > $50k in 15 min" market still has low odds (0.35)
-3. Bot buys YES shares at 0.35
-4. Within seconds, other traders update the market to 0.85
-5. Bot holds until market resolves (BTC is above $50k) and profits
-
-## Risk Management
-
-The bot includes several safety features:
-
-- **Stop Loss**: Exits if position loses more than 15% (default)
-- **Take Profit**: Exits if position gains more than 90% (default)
-- **Daily Loss Limit**: Stops trading if daily losses exceed $1,000 (default)
-- **Emergency Shutdown**: Hard stop if total losses exceed $5,000
-- **Position Limits**: Max 5 concurrent positions by default
-
-Adjust these in `config.json` under `risk_management`.
-
-## Monitoring
-
-The bot logs all activity to:
-- **Console**: Color-coded status updates
-- **logs/bot.log**: Detailed operational logs
-- **logs/trades.log**: All trade entries/exits with P&L
-
-Check your performance:
-```bash
-tail -f logs/trades.log
-```
-
-## Important Notes
-
-1. **Start Small**: Test with minimum position sizes first
-2. **Network Latency Matters**: Run the bot on a VPS close to exchange servers
-3. **Polymarket Fees**: Currently 2% fee on winning positions
-4. **Market Efficiency**: Arbitrage opportunities have decreased as more bots compete
-5. **Capital Requirements**: Need funds on both Polymarket and exchanges
-6. **Terms of Service**: Ensure your usage complies with platform ToS
-
-## Troubleshooting
-
-### "Client not initialized" error
-- Check your Polymarket private key is correctly formatted
-- Ensure you have MATIC for gas fees on Polygon network
-
-### No opportunities detected
-- Verify exchanges are connected (check logs)
-- Lower `divergence_threshold` in config (but be careful!)
-- Make sure you're monitoring active 15-minute markets
-
-### Orders not executing
-- Check your Polymarket balance
-- Verify API permissions are set correctly
-- Look for rate limiting messages in logs
-
-## Advanced Usage
-
-### Custom Market Selection
-
-Edit `src/polymarket_client.py` to filter for specific markets:
-
-```python
-async def get_crypto_markets(self, asset: str = "BTC", timeframe: str = "15MIN"):
-    # Add custom filtering logic here
-    pass
-```
-
-### Backtesting
-
-Create a backtesting script using historical data:
-
-```python
-from src.arbitrage_detector import ArbitrageDetector
-
-detector = ArbitrageDetector()
-# Load historical exchange prices and Polymarket odds
-# Simulate opportunity detection
-```
-
-## Safety Checklist
-
-Before running with real money:
-
-- [ ] Tested on testnet/paper trading
-- [ ] Verified all API keys are correct
-- [ ] Set conservative position sizes
-- [ ] Understood the risks
-- [ ] Have stop-loss limits configured
-- [ ] Monitoring is set up (alerts/logs)
-- [ ] Read and understood platform ToS
-
-## Support
-
-For issues or questions:
-- Open an issue on GitHub
-- Check logs for detailed error messages
-- Review the code - it's well-commented!
-
-## Legal Disclaimer
-
-This software is for educational purposes only. Trading involves significant risk of loss. The authors are not responsible for any financial losses. Always comply with local regulations and platform terms of service.
+**Get your Polymarket dashboard working in 5 minutes!**
 
 ---
 
-**Happy (safe) trading!**
+## Step 1: Test the APIs (2 minutes)
+
+```bash
+cd /home/Gabe/gabubu-repos/polymarket-arbitrage-bot
+python examples/test_apis.py
+```
+
+This will verify that all Polymarket APIs are accessible and working.
+
+**Expected output:**
+```
+GAMMA API       ✓ PASS
+DATA API        ✓ PASS
+CLOB API        ✓ PASS
+SEARCH          ✓ PASS
+
+🎉 ALL TESTS PASSED! APIs are working correctly.
+```
+
+---
+
+## Step 2: See Live Data (1 minute)
+
+```bash
+python examples/simple_monitor.py
+```
+
+This shows you top markets refreshed every 30 seconds. Press `Ctrl+C` to stop.
+
+**You'll see:**
+- Top 15 markets by 24h volume
+- Current prices for each outcome
+- Volume and liquidity stats
+
+---
+
+## Step 3: Explore a Market (1 minute)
+
+```bash
+# Search for a market
+python examples/get_market_data.py "Trump"
+
+# Or use a specific slug
+python examples/get_market_data.py presidential-election-winner-2024
+```
+
+**You'll see:**
+- Full market details
+- Top 10 holders
+- Recent 15 trades
+
+---
+
+## Step 4: Real-Time Updates (Optional)
+
+```bash
+pip install websockets  # If not already installed
+python examples/websocket_prices.py
+```
+
+This connects to Polymarket's WebSocket feed and shows live price updates.
+
+---
+
+## Step 5: Install Python Package (Recommended)
+
+For production use, install the official Python package:
+
+```bash
+pip install polymarket-apis
+```
+
+Then you can use it in your code:
+
+```python
+from polymarket_apis import PolymarketGammaClient
+
+gamma = PolymarketGammaClient()
+markets = gamma.get_markets(limit=20, active=True, order='volume24hr')
+
+for market in markets:
+    print(f"{market.question}: ${market.volume:,.0f}")
+```
+
+---
+
+## Next Steps
+
+### For Your Dashboard:
+
+1. **Choose your approach:**
+   - **Simple**: Use the raw REST APIs (examples show how)
+   - **Recommended**: Use `polymarket-apis` package (more features, easier)
+
+2. **Architecture suggestion:**
+   ```
+   Backend:  FastAPI + polymarket-apis + Redis (for caching)
+   Frontend: React + WebSocket for live updates
+   ```
+
+3. **Key endpoints to use:**
+   - `GET /api/markets/trending` → Show top markets
+   - `GET /api/markets/{id}` → Market details
+   - `WebSocket /ws/prices` → Real-time price updates
+
+### Example Backend (FastAPI)
+
+Create `backend/main.py`:
+
+```python
+from fastapi import FastAPI
+from polymarket_apis import PolymarketGammaClient, PolymarketDataClient
+
+app = FastAPI()
+gamma = PolymarketGammaClient()
+data = PolymarketDataClient()
+
+@app.get("/api/markets/trending")
+async def trending_markets(limit: int = 20):
+    return gamma.get_markets(limit=limit, active=True, order='volume24hr')
+
+@app.get("/api/markets/{condition_id}")
+async def market_details(condition_id: str):
+    return gamma.get_market(condition_id)
+
+@app.get("/api/holders/{condition_id}")
+async def top_holders(condition_id: str, limit: int = 10):
+    return data.get_holders(market=condition_id, limit=limit)
+```
+
+Run it:
+```bash
+pip install fastapi uvicorn polymarket-apis
+uvicorn backend.main:app --reload
+```
+
+Visit: http://localhost:8000/api/markets/trending
+
+---
+
+## 📚 Full Documentation
+
+- **Complete API Guide**: `POLYMARKET_DATA_ACCESS.md`
+- **Example Code**: `examples/` directory
+- **Official Docs**: https://docs.polymarket.com
+
+---
+
+## 🆘 Troubleshooting
+
+### "Connection refused" or timeout errors
+- Check your internet connection
+- Polymarket APIs might be rate limiting (add delays between requests)
+- Try again in a few seconds
+
+### "No module named 'requests'"
+```bash
+pip install requests
+```
+
+### "No module named 'websockets'" (for websocket_prices.py)
+```bash
+pip install websockets
+```
+
+### "Market not found"
+- Check the slug is correct (copy from polymarket.com URL)
+- Use the search feature: `python examples/get_market_data.py "search term"`
+
+---
+
+## 💡 Pro Tips
+
+1. **Cache aggressively** - Market metadata doesn't change often (30-60s cache)
+2. **Use WebSockets for prices** - Don't poll, subscribe!
+3. **Start simple** - Get basic data working first, add features later
+4. **Check the examples** - They show working implementations
+
+---
+
+## ✅ You're Ready!
+
+All the tools are here:
+- ✅ Working API examples
+- ✅ Python package with full features
+- ✅ Complete documentation
+- ✅ Ready-to-run scripts
+
+**Build your dashboard and ship it!** 🚀
