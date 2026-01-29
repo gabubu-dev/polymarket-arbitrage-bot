@@ -44,10 +44,11 @@ class PositionManager:
     Manages trading positions and executes trades.
     
     Handles position entry, exit, and P&L tracking.
+    Supports both live trading and paper trading modes.
     """
     
     def __init__(self, polymarket_client, max_positions: int = 5,
-                 position_size_usd: float = 100.0):
+                 position_size_usd: float = 100.0, paper_trader=None):
         """
         Initialize position manager.
         
@@ -55,11 +56,14 @@ class PositionManager:
             polymarket_client: PolymarketClient instance
             max_positions: Maximum concurrent positions
             position_size_usd: Default position size in USD
+            paper_trader: Optional PaperTrader instance for paper trading
         """
         self.logger = logging.getLogger("PositionManager")
         self.polymarket = polymarket_client
         self.max_positions = max_positions
         self.position_size_usd = position_size_usd
+        self.paper_trader = paper_trader
+        self.paper_mode = paper_trader is not None
         
         # Position tracking
         self.positions: Dict[str, Position] = {}
@@ -69,6 +73,11 @@ class PositionManager:
         self.total_pnl = 0.0
         self.win_count = 0
         self.loss_count = 0
+        
+        if self.paper_mode:
+            self.logger.info("📝 Position Manager initialized in PAPER TRADING mode")
+        else:
+            self.logger.info("💰 Position Manager initialized in LIVE TRADING mode")
     
     async def open_position(self, opportunity) -> Optional[Position]:
         """
@@ -91,41 +100,75 @@ class PositionManager:
         side = "BUY"  # We're buying YES or NO shares
         price = opportunity.polymarket_odds
         
-        # Place order on Polymarket
-        order_id = await self.polymarket.place_order(
-            market_id=opportunity.polymarket_market_id,
-            side=side,
-            size=self.position_size_usd,
-            price=price
-        )
+        if self.paper_mode:
+            # Use paper trading simulation
+            paper_trade = await self.paper_trader.open_position(
+                symbol=opportunity.symbol,
+                market_id=opportunity.polymarket_market_id,
+                market_name=getattr(opportunity, 'market_name', opportunity.symbol),
+                direction=opportunity.direction,
+                size_usd=self.position_size_usd,
+                requested_price=price,
+                strategy=getattr(opportunity, 'strategy', 'unknown')
+            )
+            
+            if not paper_trade:
+                return None
+            
+            # Create corresponding Position object for compatibility
+            position_id = paper_trade.trade_id
+            
+            position = Position(
+                position_id=position_id,
+                symbol=opportunity.symbol,
+                market_id=opportunity.polymarket_market_id,
+                side=side,
+                direction=opportunity.direction,
+                size_usd=paper_trade.size_filled,
+                entry_price=paper_trade.entry_price,
+                entry_time=datetime.now(),
+                order_id=f"paper_{paper_trade.trade_id}"
+            )
+            
+            self.positions[position_id] = position
+            return position
         
-        if not order_id:
-            self.logger.error("Failed to place order")
-            return None
-        
-        # Create position
-        position_id = f"{opportunity.symbol}_{opportunity.direction}_{datetime.now().timestamp()}"
-        
-        position = Position(
-            position_id=position_id,
-            symbol=opportunity.symbol,
-            market_id=opportunity.polymarket_market_id,
-            side=side,
-            direction=opportunity.direction,
-            size_usd=self.position_size_usd,
-            entry_price=price,
-            entry_time=datetime.now(),
-            order_id=order_id
-        )
-        
-        self.positions[position_id] = position
-        
-        self.logger.info(
-            f"Opened position: {position.symbol} {position.direction} @ {price:.3f} "
-            f"(size: ${self.position_size_usd})"
-        )
-        
-        return position
+        else:
+            # Live trading - place real order
+            order_id = await self.polymarket.place_order(
+                market_id=opportunity.polymarket_market_id,
+                side=side,
+                size=self.position_size_usd,
+                price=price
+            )
+            
+            if not order_id:
+                self.logger.error("Failed to place order")
+                return None
+            
+            # Create position
+            position_id = f"{opportunity.symbol}_{opportunity.direction}_{datetime.now().timestamp()}"
+            
+            position = Position(
+                position_id=position_id,
+                symbol=opportunity.symbol,
+                market_id=opportunity.polymarket_market_id,
+                side=side,
+                direction=opportunity.direction,
+                size_usd=self.position_size_usd,
+                entry_price=price,
+                entry_time=datetime.now(),
+                order_id=order_id
+            )
+            
+            self.positions[position_id] = position
+            
+            self.logger.info(
+                f"Opened position: {position.symbol} {position.direction} @ {price:.3f} "
+                f"(size: ${self.position_size_usd})"
+            )
+            
+            return position
     
     async def close_position(self, position_id: str, 
                             exit_price: float,
@@ -151,37 +194,70 @@ class PositionManager:
             self.logger.warning(f"Position {position_id} is not open")
             return False
         
-        # Calculate P&L
-        # For prediction markets: profit = (exit_price - entry_price) * size
-        # If we bought at 0.60 and exit at 1.00, we profit 0.40 per share
-        pnl = (exit_price - position.entry_price) * position.size_usd
+        if self.paper_mode:
+            # Use paper trading simulation
+            paper_trade = await self.paper_trader.close_position(
+                trade_id=position_id,
+                exit_price=exit_price,
+                reason=reason
+            )
+            
+            if not paper_trade:
+                return False
+            
+            # Update position with paper trade results
+            position.exit_price = paper_trade.exit_price
+            position.exit_time = datetime.now()
+            position.pnl = paper_trade.pnl
+            position.exit_reason = reason
+            position.status = PositionStatus.CLOSED
+            
+            # Update metrics
+            self.total_pnl += paper_trade.pnl
+            if paper_trade.pnl > 0:
+                self.win_count += 1
+            else:
+                self.loss_count += 1
+            
+            # Move to closed positions
+            self.closed_positions.append(position)
+            del self.positions[position_id]
+            
+            return True
         
-        # Update position
-        position.exit_price = exit_price
-        position.exit_time = datetime.now()
-        position.pnl = pnl
-        position.exit_reason = reason
-        position.status = PositionStatus.CLOSED
-        
-        # Update metrics
-        self.total_pnl += pnl
-        if pnl > 0:
-            self.win_count += 1
         else:
-            self.loss_count += 1
-        
-        # Move to closed positions
-        self.closed_positions.append(position)
-        del self.positions[position_id]
-        
-        hold_time = (position.exit_time - position.entry_time).total_seconds()
-        
-        self.logger.info(
-            f"Closed position: {position.symbol} | P&L: ${pnl:.2f} | "
-            f"Hold time: {hold_time:.0f}s | Reason: {reason}"
-        )
-        
-        return True
+            # Live trading - close real position
+            # Calculate P&L
+            # For prediction markets: profit = (exit_price - entry_price) * size
+            # If we bought at 0.60 and exit at 1.00, we profit 0.40 per share
+            pnl = (exit_price - position.entry_price) * position.size_usd
+            
+            # Update position
+            position.exit_price = exit_price
+            position.exit_time = datetime.now()
+            position.pnl = pnl
+            position.exit_reason = reason
+            position.status = PositionStatus.CLOSED
+            
+            # Update metrics
+            self.total_pnl += pnl
+            if pnl > 0:
+                self.win_count += 1
+            else:
+                self.loss_count += 1
+            
+            # Move to closed positions
+            self.closed_positions.append(position)
+            del self.positions[position_id]
+            
+            hold_time = (position.exit_time - position.entry_time).total_seconds()
+            
+            self.logger.info(
+                f"Closed position: {position.symbol} | P&L: ${pnl:.2f} | "
+                f"Hold time: {hold_time:.0f}s | Reason: {reason}"
+            )
+            
+            return True
     
     async def check_position_exits(self, risk_manager) -> None:
         """
@@ -225,6 +301,11 @@ class PositionManager:
         Returns:
             Dictionary with performance metrics
         """
+        # If in paper mode, use paper trader stats
+        if self.paper_mode and self.paper_trader:
+            return self.paper_trader.get_performance_stats()
+        
+        # Otherwise use live trading stats
         total_trades = self.win_count + self.loss_count
         win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0
         

@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polymarket Trading Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #0a0b0e;
+            --bg-secondary: #15171c;
+            --bg-tertiary: #1c1f26;
+            --text-primary: #ffffff;
+            --text-secondary: #8b949e;
+            --accent-green: #00d084;
+            --accent-red: #ff4757;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --border-color: #2d3139;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 1000;
+            height: 64px;
+        }
+        
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo h1 {
+            font-size: 20px;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header-stats {
+            display: flex;
+            gap: 24px;
+        }
+        
+        .header-stat {
+            text-align: right;
+        }
+        .header-stat .label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        .header-stat .value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .header-stat .value.positive { color: var(--accent-green); }
+        .header-stat .value.negative { color: var(--accent-red); }
+        
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            margin-top: 64px;
+            height: calc(100vh - 64px);
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .portfolio-card {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .portfolio-value {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .portfolio-change {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .portfolio-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .portfolio-item .label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        .portfolio-item .value {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        
+        /* Positions List */
+        .positions-section {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        
+        .section-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .position-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .position-card:hover {
+            border-color: var(--accent-blue);
+        }
+        
+        .position-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .position-name {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        .position-badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .position-badge.yes {
+            background: rgba(0, 208, 132, 0.2);
+            color: var(--accent-green);
+        }
+        .position-badge.no {
+            background: rgba(255, 71, 87, 0.2);
+            color: var(--accent-red);
+        }
+        
+        .position-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            font-size: 12px;
+        }
+        
+        .position-pnl {
+            font-weight: 700;
+        }
+        .position-pnl.positive { color: var(--accent-green); }
+        .position-pnl.negative { color: var(--accent-red); }
+        
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1px;
+        }
+        
+        .tab {
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .tab:hover { color: var(--text-primary); }
+        .tab.active {
+            color: var(--text-primary);
+            border-bottom-color: var(--accent-blue);
+        }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Search */
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .refresh-btn {
+            padding: 12px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .refresh-btn:hover {
+            border-color: var(--accent-blue);
+        }
+        
+        /* Market Cards */
+        .markets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 16px;
+        }
+        
+        .market-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .market-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+        
+        .market-header {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .market-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .market-title-wrap {
+            flex: 1;
+        }
+        
+        .market-title {
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .market-category {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        .market-odds {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .odds-btn {
+            flex: 1;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .odds-btn:hover {
+            border-color: var(--accent-blue);
+        }
+        
+        .odds-btn.yes:hover {
+            border-color: var(--accent-green);
+            background: rgba(0, 208, 132, 0.1);
+        }
+        
+        .odds-btn.no:hover {
+            border-color: var(--accent-red);
+            background: rgba(255, 71, 87, 0.1);
+        }
+        
+        .odds-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        
+        .odds-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        
+        .odds-value.yes { color: var(--accent-green); }
+        .odds-value.no { color: var(--accent-red); }
+        
+        .market-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-overlay.active { display: flex; }
+        
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .selected-outcome {
+            padding: 16px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .selected-outcome.yes {
+            border: 1px solid var(--accent-green);
+        }
+        .selected-outcome.no {
+            border: 1px solid var(--accent-red);
+        }
+        
+        .outcome-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        
+        .outcome-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        
+        .outcome-value.yes { color: var(--accent-green); }
+        .outcome-value.no { color: var(--accent-red); }
+        
+        .amount-input-wrap {
+            margin-bottom: 16px;
+        }
+        
+        .amount-input-wrap label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        
+        .amount-input-row {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .amount-input {
+            flex: 1;
+            padding: 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+        }
+        
+        .amount-btn {
+            padding: 14px 20px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .amount-btn:hover {
+            border-color: var(--accent-blue);
+        }
+        
+        .trade-summary {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+        
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+        
+        .summary-row .label {
+            color: var(--text-secondary);
+        }
+        
+        .summary-row .value {
+            font-weight: 600;
+        }
+        
+        .summary-row.total {
+            font-size: 16px;
+            font-weight: 700;
+            margin-top: 8px;
+            padding-top: 12px;
+            border-top: 2px solid var(--border-color);
+        }
+        
+        .execute-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .execute-btn:hover {
+            background: #2563eb;
+        }
+        
+        .execute-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Trades Table */
+        .trades-table {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .table-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        
+        .table-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-color);
+            font-size: 13px;
+            align-items: center;
+        }
+        
+        .trade-side {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+        
+        .trade-side.buy {
+            background: rgba(0, 208, 132, 0.2);
+            color: var(--accent-green);
+        }
+        
+        .trade-side.sell {
+            background: rgba(255, 71, 87, 0.2);
+            color: var(--accent-red);
+        }
+        
+        .trade-pnl {
+            font-weight: 700;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 3000;
+            transform: translateX(400px);
+            transition: transform 0.3s;
+            max-width: 300px;
+        }
+        
+        .toast.show { transform: translateX(0); }
+        .toast.success { border-left: 4px solid var(--accent-green); }
+        .toast.error { border-left: 4px solid var(--accent-red); }
+        
+        .toast-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .toast-message {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        /* Loading */
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Reset Button */
+        .reset-btn {
+            margin: 16px;
+            padding: 10px;
+            background: transparent;
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .reset-btn:hover {
+            background: rgba(255, 71, 87, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <h1>📊 Polymarket Pro</h1>
+        </div>
+        <div class="header-stats">
+            <div class="header-stat">
+                <div class="label">Portfolio Value</div>
+                <div class="value" id="header-value">$10,000.00</div>
+            </div>
+            <div class="header-stat">
+                <div class="label">Total P&L</div>
+                <div class="value" id="header-pnl">$0.00</div>
+            </div>
+            <div class="header-stat">
+                <div class="label">Cash Available</div>
+                <div class="value" id="header-cash">$10,000.00</div>
+            </div>
+        </div>
+    </header>
+    
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="portfolio-card">
+                <div class="portfolio-value" id="portfolio-value">$10,000.00</div>
+                <div class="portfolio-change" id="portfolio-change">$0.00 (0.00%)</div>
+                
+                <div class="portfolio-grid">
+                    <div class="portfolio-item">
+                        <span class="label">Cash</span>
+                        <span class="value" id="portfolio-cash">$10,000</span>
+                    </div>
+                    <div class="portfolio-item">
+                        <span class="label">Invested</span>
+                        <span class="value" id="portfolio-invested">$0</span>
+                    </div>
+                    <div class="portfolio-item">
+                        <span class="label">Positions</span>
+                        <span class="value" id="portfolio-positions">0</span>
+                    </div>
+                    <div class="portfolio-item">
+                        <span class="label">Win Rate</span>
+                        <span class="value" id="portfolio-winrate">0%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="positions-section">
+                <div class="section-title">
+                    <span>Open Positions</span>
+                    <span id="position-count">0</span>
+                </div>
+                <div id="positions-list">
+                    <div class="empty-state">
+                        <i class="fas fa-chart-pie"></i>
+                        <div>No open positions</div>
+                        <div style="font-size: 12px; margin-top: 8px;">Select a market to start trading</div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="reset-btn" onclick="resetAccount()">
+                <i class="fas fa-rotate-left"></i> Reset Paper Account
+            </button>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('markets')">Markets</button>
+                <button class="tab" onclick="switchTab('trades')">Trade History</button>
+            </div>
+            
+            <!-- Markets Tab -->
+            <div class="tab-content active" id="markets-tab">
+                <div class="search-bar">
+                    <input type="text" class="search-input" id="search-input" placeholder="Search markets..." onkeyup="searchMarkets()">
+                    <button class="refresh-btn" onclick="loadMarkets()">
+                        <i class="fas fa-refresh"></i>
+                    </button>
+                </div>
+                
+                <div class="markets-grid" id="markets-grid">
+                    <div class="empty-state">
+                        <div class="loading"></div>
+                        <div style="margin-top: 16px;">Loading markets...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Trades Tab -->
+            <div class="tab-content" id="trades-tab">
+                <div class="trades-table">
+                    <div class="table-header">
+                        <span>Market</span>
+                        <span>Action</span>
+                        <span>Amount</span>
+                        <span>Price</span>
+                        <span>P&L</span>
+                    </div>
+                    <div id="trades-list">
+                        <div class="empty-state">
+                            <i class="fas fa-list"></i>
+                            <div>No trades yet</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Trade Modal -->
+    <div class="modal-overlay" id="trade-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title">Place Order</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="selected-outcome" id="selected-outcome">
+                    <div class="outcome-label">Selected Outcome</div>
+                    <div class="outcome-value" id="outcome-value">YES</div>
+                </div>
+                
+                <div class="amount-input-wrap">
+                    <label>Number of Shares</label>
+                    <div class="amount-input-row">
+                        <input type="number" class="amount-input" id="trade-amount" placeholder="0" min="1" step="1" oninput="updateSummary()">
+                        <button class="amount-btn" onclick="setAmount(10)">10</button>
+                        <button class="amount-btn" onclick="setAmount(50)">50</button>
+                        <button class="amount-btn" onclick="setAmount(100)">100</button>
+                    </div>
+                </div>
+                
+                <div class="trade-summary">
+                    <div class="summary-row">
+                        <span class="label">Price per Share</span>
+                        <span class="value" id="summary-price">$0.50</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="label">Subtotal</span>
+                        <span class="value" id="summary-subtotal">$0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="label">Fee (0.2%)</span>
+                        <span class="value" id="summary-fee">$0.00</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span class="label">Total Cost</span>
+                        <span class="value" id="summary-total">$0.00</span>
+                    </div>
+                </div>
+                
+                <button class="execute-btn" id="execute-btn" onclick="executeTrade()">
+                    Buy Shares
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <div class="toast-title" id="toast-title">Success</div>
+        <div class="toast-message" id="toast-message">Trade executed</div>
+    </div>
+    
+    <script>
+        // State
+        let markets = [];
+        let portfolio = {};
+        let positions = [];
+        let selectedMarket = null;
+        let selectedSide = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadMarkets();
+            loadPortfolio();
+            setInterval(() => {
+                loadPortfolio();
+                updatePositionPrices();
+            }, 10000);
+        });
+        
+        // Load Markets
+        async function loadMarkets() {
+            try {
+                const res = await fetch('/api/markets');
+                const data = await res.json();
+                markets = data.markets;
+                renderMarkets(markets);
+            } catch (err) {
+                console.error('Error loading markets:', err);
+            }
+        }
+        
+        // Render Markets
+        function renderMarkets(marketsToRender) {
+            const grid = document.getElementById('markets-grid');
+            
+            if (marketsToRender.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <div>No markets found</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = marketsToRender.map(m => `
+                <div class="market-card">
+                    <div class="market-header">
+                        <div class="market-icon">${getCategoryEmoji(m.category)}</div>
+                        <div class="market-title-wrap">
+                            <div class="market-title">${escapeHtml(m.question)}</div>
+                            <div class="market-category">${m.category} • Vol: $${formatNumber(m.volume)}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="market-odds">
+                        <div class="odds-btn yes" onclick="openTradeModal('${m.id}', 'YES', ${m.yes_price}, '${escapeHtml(m.question)}')">
+                            <div class="odds-label">Yes</div>
+                            <div class="odds-value yes">${(m.yes_price * 100).toFixed(0)}¢</div>
+                        </div>
+                        <div class="odds-btn no" onclick="openTradeModal('${m.id}', 'NO', ${m.no_price}, '${escapeHtml(m.question)}')">
+                            <div class="odds-label">No</div>
+                            <div class="odds-value no">${(m.no_price * 100).toFixed(0)}¢</div>
+                        </div>
+                    </div>
+                    
+                    <div class="market-footer">
+                        <span><i class="fas fa-clock"></i> ${formatDate(m.end_date)}</span>
+                        <span>Spread: ${(m.spread * 100).toFixed(1)}¢</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Load Portfolio
+        async function loadPortfolio() {
+            try {
+                const [portfolioRes, positionsRes, tradesRes] = await Promise.all([
+                    fetch('/api/portfolio'),
+                    fetch('/api/positions'),
+                    fetch('/api/trades')
+                ]);
+                
+                portfolio = await portfolioRes.json();
+                const positionsData = await positionsRes.json();
+                const tradesData = await tradesRes.json();
+                
+                positions = positionsData.positions;
+                updatePortfolioUI();
+                renderPositions();
+                renderTrades(tradesData.trades);
+            } catch (err) {
+                console.error('Error loading portfolio:', err);
+            }
+        }
+        
+        // Update Portfolio UI
+        function updatePortfolioUI() {
+            document.getElementById('header-value').textContent = `$${formatMoney(portfolio.total_value)}`;
+            document.getElementById('header-cash').textContent = `$${formatMoney(portfolio.cash)}`;
+            document.getElementById('header-pnl').textContent = `$${formatMoney(portfolio.total_pnl)}`;
+            document.getElementById('header-pnl').className = `value ${portfolio.total_pnl >= 0 ? 'positive' : 'negative'}`;
+            
+            document.getElementById('portfolio-value').textContent = `$${formatMoney(portfolio.total_value)}`;
+            document.getElementById('portfolio-change').textContent = `$${formatMoney(portfolio.total_pnl)} (${portfolio.total_return_pct.toFixed(2)}%)`;
+            document.getElementById('portfolio-change').style.color = portfolio.total_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+            
+            document.getElementById('portfolio-cash').textContent = `$${formatMoney(portfolio.cash)}`;
+            document.getElementById('portfolio-invested').textContent = `$${formatMoney(portfolio.invested)}`;
+            document.getElementById('portfolio-positions').textContent = portfolio.position_count;
+            document.getElementById('portfolio-winrate').textContent = `${portfolio.win_rate.toFixed(0)}%`;
+        }
+        
+        // Render Positions
+        function renderPositions() {
+            const list = document.getElementById('positions-list');
+            document.getElementById('position-count').textContent = positions.length;
+            
+            if (positions.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-chart-pie"></i>
+                        <div>No open positions</div>
+                        <div style="font-size: 12px; margin-top: 8px;">Select a market to start trading</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = positions.map(p => `
+                <div class="position-card" onclick="closePosition('${p.key}')">
+                    <div class="position-header">
+                        <span class="position-name">${escapeHtml(p.market_question)}</span>
+                        <span class="position-badge ${p.side.toLowerCase()}">${p.side}</span>
+                    </div>
+                    <div class="position-details">
+                        <div>
+                            <div style="color: var(--text-secondary); font-size: 11px;">Shares</div>
+                            <div>${p.amount}</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--text-secondary); font-size: 11px;">Avg Price</div>
+                            <div>${(p.avg_entry_price * 100).toFixed(1)}¢</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--text-secondary); font-size: 11px;">P&L</div>
+                            <div class="position-pnl ${p.unrealized_pnl >= 0 ? 'positive' : 'negative'}">
+                                ${p.unrealized_pnl >= 0 ? '+' : ''}$${formatMoney(p.unrealized_pnl)}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">
+                        Click to sell position
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Render Trades
+        function renderTrades(trades) {
+            const list = document.getElementById('trades-list');
+            
+            if (trades.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-list"></i>
+                        <div>No trades yet</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = trades.slice(0, 20).map(t => `
+                <div class="table-row">
+                    <span>${escapeHtml(t.market_question.substring(0, 40))}</span>
+                    <span><span class="trade-side ${t.action.toLowerCase()}">${t.side} ${t.action}</span></span>
+                    <span>${t.amount}</span>
+                    <span>${(t.price * 100).toFixed(1)}¢</span>
+                    <span class="trade-pnl ${t.pnl >= 0 ? 'positive' : 'negative'}">${t.pnl ? (t.pnl >= 0 ? '+' : '') + '$' + formatMoney(t.pnl) : '-'}</span>
+                </div>
+            `).join('');
+        }
+        
+        // Trade Modal
+        function openTradeModal(marketId, side, price, question) {
+            selectedMarket = { id: marketId, price, question };
+            selectedSide = side;
+            
+            document.getElementById('modal-title').textContent = escapeHtml(question.substring(0, 50));
+            document.getElementById('outcome-value').textContent = side;
+            document.getElementById('outcome-value').className = `outcome-value ${side.toLowerCase()}`;
+            document.getElementById('selected-outcome').className = `selected-outcome ${side.toLowerCase()}`;
+            document.getElementById('summary-price').textContent = `$${price.toFixed(2)}`;
+            document.getElementById('trade-amount').value = '';
+            
+            updateSummary();
+            document.getElementById('trade-modal').classList.add('active');
+        }
+        
+        function closeModal() {
+            document.getElementById('trade-modal').classList.remove('active');
+            selectedMarket = null;
+            selectedSide = null;
+        }
+        
+        function setAmount(amount) {
+            document.getElementById('trade-amount').value = amount;
+            updateSummary();
+        }
+        
+        function updateSummary() {
+            const amount = parseFloat(document.getElementById('trade-amount').value) || 0;
+            const price = selectedMarket ? selectedMarket.price : 0.5;
+            
+            const subtotal = amount * price;
+            const fee = subtotal * 0.002;
+            const total = subtotal + fee;
+            
+            document.getElementById('summary-subtotal').textContent = `$${subtotal.toFixed(2)}`;
+            document.getElementById('summary-fee').textContent = `$${fee.toFixed(2)}`;
+            document.getElementById('summary-total').textContent = `$${total.toFixed(2)}`;
+            
+            const btn = document.getElementById('execute-btn');
+            btn.disabled = amount <= 0 || total > portfolio.cash;
+            btn.textContent = amount <= 0 ? 'Enter Amount' : total > portfolio.cash ? 'Insufficient Funds' : `Buy ${amount} Shares`;
+        }
+        
+        async function executeTrade() {
+            const amount = parseFloat(document.getElementById('trade-amount').value);
+            if (!amount || amount <= 0) return;
+            
+            const btn = document.getElementById('execute-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Processing...';
+            
+            try {
+                const res = await fetch('/api/trade/buy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        market_id: selectedMarket.id,
+                        side: selectedSide,
+                        amount: amount
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast('Trade Executed', `Bought ${amount} ${selectedSide} shares`, 'success');
+                    closeModal();
+                    loadPortfolio();
+                } else {
+                    showToast('Trade Failed', data.error || 'Unknown error', 'error');
+                }
+            } catch (err) {
+                showToast('Error', 'Failed to execute trade', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Buy Shares';
+            }
+        }
+        
+        async function closePosition(positionKey) {
+            if (!confirm('Sell this position?')) return;
+            
+            try {
+                const res = await fetch('/api/trade/sell', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ position_key: positionKey })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast('Position Sold', `Realized P&L: $${formatMoney(data.realized_pnl)}`, 'success');
+                    loadPortfolio();
+                } else {
+                    showToast('Error', data.error || 'Failed to sell', 'error');
+                }
+            } catch (err) {
+                showToast('Error', 'Failed to close position', 'error');
+            }
+        }
+        
+        async function resetAccount() {
+            if (!confirm('Reset paper trading account to $10,000? This will clear all positions and trades.')) return;
+            
+            try {
+                const res = await fetch('/api/reset', { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast('Account Reset', 'Paper trading account reset to $10,000', 'success');
+                    loadPortfolio();
+                }
+            } catch (err) {
+                showToast('Error', 'Failed to reset account', 'error');
+            }
+        }
+        
+        // Search Markets
+        function searchMarkets() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const filtered = markets.filter(m => m.question.toLowerCase().includes(query));
+            renderMarkets(filtered);
+        }
+        
+        // Switch Tab
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`${tab}-tab`).classList.add('active');
+        }
+        
+        // Toast
+        function showToast(title, message, type) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-title').textContent = title;
+            document.getElementById('toast-message').textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 4000);
+        }
+        
+        // Helpers
+        function formatMoney(amount) {
+            return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        
+        function formatNumber(num) {
+            if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M';
+            if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K';
+            return num.toFixed(0);
+        }
+        
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+        
+        function getCategoryEmoji(category) {
+            const emojis = {
+                'Politics': '🏛️', 'Crypto': '₿', 'Sports': '⚽', 'Entertainment': '🎬',
+                'Tech': '💻', 'Science': '🔬', 'Finance': '💰', 'General': '📊'
+            };
+            return emojis[category] || '📊';
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        async function updatePositionPrices() {
+            // Position prices are updated automatically via loadPortfolio
+        }
+    </script>
+</body>
+</html>

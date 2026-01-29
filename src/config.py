@@ -36,6 +36,8 @@ class TradingConfig:
     position_size_usd: float = 100.0
     max_positions: int = 5
     max_position_size_usd: float = 500.0
+    trading_mode: str = "paper"  # "paper" or "live"
+    paper_trading_balance: float = 10000.0  # Initial virtual balance for paper trading
 
 
 @dataclass
@@ -125,7 +127,12 @@ class Config:
         
         # Parse trading config
         if 'trading' in self._raw_config:
-            self.trading = TradingConfig(**self._raw_config['trading'])
+            trading_data = self._raw_config['trading']
+            self.trading = TradingConfig(**trading_data)
+        
+        # Also check for trading_mode at root level (for backward compatibility)
+        if 'trading_mode' in self._raw_config:
+            self.trading.trading_mode = self._raw_config['trading_mode']
         
         # Parse markets config
         if 'markets' in self._raw_config:

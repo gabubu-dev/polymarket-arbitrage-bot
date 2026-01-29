@@ -76,7 +76,12 @@ dashboard_state = {
     'market_data': {},
     'performance_stats': {},
     'risk_status': {},
-    'last_update': None
+    'last_update': None,
+    'paper_trading': {
+        'enabled': False,
+        'virtual_balance': 10000.0,
+        'initial_balance': 10000.0
+    }
 }
 
 # Initialize components
@@ -114,8 +119,33 @@ def api_status():
         'bot_running': dashboard_state['bot_running'],
         'components_available': BOT_COMPONENTS_AVAILABLE,
         'last_update': dashboard_state['last_update'],
-        'timestamp': datetime.now().isoformat()
+        'timestamp': datetime.now().isoformat(),
+        'paper_trading': dashboard_state.get('paper_trading', {'enabled': False})
     })
+
+
+@app.route('/api/paper-trading/stats')
+def api_paper_trading_stats():
+    """Get paper trading statistics."""
+    try:
+        sys.path.insert(0, str(Path(__file__).parent / "src"))
+        from paper_trader import PaperTrader
+        
+        trader = PaperTrader()
+        stats = trader.get_performance_stats()
+        
+        return jsonify({
+            'enabled': True,
+            'stats': stats,
+            'open_positions': [t.to_dict() for t in trader.get_open_positions()],
+            'recent_trades': [t.to_dict() for t in trader.get_closed_positions(20)]
+        })
+    except Exception as e:
+        logger.error(f"Error getting paper trading stats: {e}")
+        return jsonify({
+            'enabled': False,
+            'error': str(e)
+        })
 
 
 @app.route('/api/positions')
@@ -390,6 +420,25 @@ def generate_mock_data():
         'take_profit_pct': 0.90
     }
     
+    # Load paper trading data
+    try:
+        from paper_trader import PaperTrader
+        trader = PaperTrader()
+        stats = trader.get_performance_stats()
+        
+        dashboard_state['paper_trading'] = {
+            'enabled': True,
+            'virtual_balance': stats['current_balance'],
+            'initial_balance': stats['initial_balance']
+        }
+    except Exception as e:
+        logger.debug(f"Could not load paper trading data: {e}")
+        dashboard_state['paper_trading'] = {
+            'enabled': False,
+            'virtual_balance': 0.0,
+            'initial_balance': 0.0
+        }
+    
     dashboard_state['bot_running'] = True
     dashboard_state['last_update'] = now.isoformat()
 
@@ -418,6 +467,20 @@ def create_templates():
             background: #1a1a2e;
             color: #eee;
             min-height: 100vh;
+        }
+        
+        .paper-trading-banner {
+            background: linear-gradient(90deg, #4a148c 0%, #7b1fa2 50%, #4a148c 100%);
+            color: #fff;
+            padding: 0.75rem 2rem;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1rem;
+            display: none;
+        }
+        
+        .paper-trading-banner.visible {
+            display: block;
         }
         
         .header {
@@ -472,6 +535,11 @@ def create_templates():
             border: 1px solid #0f3460;
         }
         
+        .card.paper-mode {
+            background: linear-gradient(135deg, #16213e 0%, #2d1b4e 100%);
+            border: 1px solid #7b1fa2;
+        }
+        
         .card h3 {
             color: #888;
             font-size: 0.875rem;
@@ -487,6 +555,10 @@ def create_templates():
         
         .card .value.negative {
             color: #ff6b6b;
+        }
+        
+        .card .value.paper {
+            color: #ce93d8;
         }
         
         .charts-grid {
@@ -526,6 +598,10 @@ def create_templates():
     </style>
 </head>
 <body>
+    <div id="paper-banner" class="paper-trading-banner">
+        📝 PAPER TRADING MODE - All trades are SIMULATED - No real money at risk
+    </div>
+    
     <div class="header">
         <h1>🤖 Polymarket Trading Bot</h1>
         <div class="status">
@@ -554,6 +630,25 @@ def create_templates():
             </div>
         </div>
         
+        <div class="summary-cards" id="paper-trading-cards" style="display: none;">
+            <div class="card paper-mode">
+                <h3>💰 Virtual Balance</h3>
+                <div class="value paper" id="virtual-balance">-</div>
+            </div>
+            <div class="card paper-mode">
+                <h3>📊 Total Trades</h3>
+                <div class="value paper" id="paper-total-trades">-</div>
+            </div>
+            <div class="card paper-mode">
+                <h3>📈 Sharpe Ratio</h3>
+                <div class="value paper" id="sharpe-ratio">-</div>
+            </div>
+            <div class="card paper-mode">
+                <h3>📉 Max Drawdown</h3>
+                <div class="value" id="max-drawdown">-</div>
+            </div>
+        </div>
+        
         <div class="charts-grid">
             <div class="chart-container">
                 <h3>Portfolio Overview</h3>
@@ -576,12 +671,20 @@ def create_templates():
     
     <script>
         const API_BASE = '';
+        let paperTradingEnabled = false;
         
         async function fetchData() {
             try {
-                const response = await fetch(`${API_BASE}/api/dashboard`);
-                const data = await response.json();
+                const [dashboardRes, paperRes] = await Promise.all([
+                    fetch(`${API_BASE}/api/dashboard`),
+                    fetch(`${API_BASE}/api/paper-trading/stats`)
+                ]);
+                
+                const data = await dashboardRes.json();
+                const paperData = await paperRes.json();
+                
                 updateDashboard(data);
+                updatePaperTrading(paperData);
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
             }
@@ -610,6 +713,28 @@ def create_templates():
             document.getElementById('win-rate').textContent = 
                 data.performance.win_rate ? `${data.performance.win_rate.toFixed(1)}%` : '-';
             document.getElementById('opportunities').textContent = data.summary.opportunities;
+        }
+        
+        function updatePaperTrading(data) {
+            if (!data.enabled) return;
+            
+            paperTradingEnabled = true;
+            
+            // Show paper trading banner
+            document.getElementById('paper-banner').classList.add('visible');
+            
+            // Show paper trading cards
+            document.getElementById('paper-trading-cards').style.display = 'grid';
+            
+            // Update paper trading stats
+            const stats = data.stats;
+            document.getElementById('virtual-balance').textContent = `$${stats.current_balance.toFixed(2)}`;
+            document.getElementById('paper-total-trades').textContent = stats.total_trades;
+            document.getElementById('sharpe-ratio').textContent = stats.sharpe_ratio.toFixed(2);
+            
+            const drawdownEl = document.getElementById('max-drawdown');
+            drawdownEl.textContent = `${stats.max_drawdown_percent.toFixed(2)}%`;
+            drawdownEl.classList.toggle('negative', stats.max_drawdown > 0);
         }
         
         async function loadCharts() {

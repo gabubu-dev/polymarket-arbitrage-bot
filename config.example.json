@@ -15,8 +15,11 @@
   "trading": {
     "max_positions": 5,
     "position_size_usd": 100,
-    "enabled": false
+    "enabled": false,
+    "trading_mode": "paper",
+    "paper_trading_balance": 10000.0
   },
+  "trading_mode": "paper",
   "risk": {
     "stop_loss_percentage": 0.15,
     "take_profit_percentage": 0.90,

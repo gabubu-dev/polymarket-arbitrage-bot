@@ -45,6 +45,7 @@ from probability_shifts import MultiFactorShiftDetector, ProbabilitySnapshot
 from whale_tracker import WhaleTracker, WhaleOrder, WhaleOrderSide
 from latency_arbitrage import LatencyArbitrageEngine, SpreadLockEngine
 from strategy_orchestrator import StrategyOrchestrator, StrategyType, StrategyOpportunity
+from paper_trader import PaperTrader, PaperTrade
 
 
 class EnhancedArbitrageBot:
@@ -58,12 +59,18 @@ class EnhancedArbitrageBot:
     - Comprehensive error handling
     - Performance monitoring
     - Circuit breaker protection
+    - Paper trading mode for risk-free testing
     """
     
-    def __init__(self, config_path: str = "config.json", strategy: str = "combined"):
+    def __init__(self, config_path: str = "config.json", strategy: str = "combined", 
+                 trading_mode: str = None, dry_run: bool = False):
         """Initialize the enhanced arbitrage bot."""
         self.config = Config(config_path)
         self.strategy_name = strategy
+        
+        # Determine trading mode
+        self.trading_mode = trading_mode or self.config.trading.trading_mode
+        self.paper_trading = self.trading_mode == "paper" or dry_run
         
         # Setup logging
         self.logger = setup_logger(
@@ -84,9 +91,15 @@ class EnhancedArbitrageBot:
             console=False
         )
         
+        # Log startup info
         self.logger.info("=" * 60)
         self.logger.info("Enhanced Polymarket Arbitrage Bot Starting")
         self.logger.info(f"Strategy: {strategy}")
+        self.logger.info(f"Trading Mode: {'📝 PAPER' if self.paper_trading else '💰 LIVE'}")
+        if self.paper_trading:
+            self.logger.info("=" * 60)
+            self.logger.info("📝 PAPER TRADING MODE - NO REAL MONEY AT RISK")
+            self.logger.info("=" * 60)
         self.logger.info("=" * 60)
         
         # Initialize components
@@ -101,12 +114,42 @@ class EnhancedArbitrageBot:
         
     def _init_components(self):
         """Initialize all bot components."""
-        # Polymarket client
+        # Polymarket client (always needed for market data)
         self.polymarket = PolymarketClient(
             api_key=self.config.polymarket.api_key,
             private_key=self.config.polymarket.private_key,
             chain_id=self.config.polymarket.chain_id
         )
+        
+        # Initialize paper trader if in paper mode
+        if self.paper_trading:
+            # Get Telegram config if available
+            telegram_config = getattr(self.config, 'telegram', None)
+            telegram_bot_token = None
+            telegram_chat_id = "6559976977"
+            
+            if telegram_config:
+                telegram_bot_token = getattr(telegram_config, 'bot_token', None)
+                telegram_chat_id = getattr(telegram_config, 'chat_id', "6559976977")
+                if not telegram_bot_token:
+                    self.logger.warning(
+                        "Telegram bot token not set in config. "
+                        "Set telegram.bot_token to enable alerts to qippu."
+                    )
+            
+            self.paper_trader = PaperTrader(
+                initial_balance=self.config.trading.paper_trading_balance,
+                data_dir="data",
+                enable_realism=True,
+                telegram_bot_token=telegram_bot_token,
+                telegram_chat_id=telegram_chat_id
+            )
+            self.logger.info(
+                f"Paper trader initialized with ${self.config.trading.paper_trading_balance:.2f} "
+                f"virtual balance"
+            )
+        else:
+            self.paper_trader = None
         
         # Exchange monitoring
         self.exchange_monitor = MultiExchangeMonitor()
@@ -129,7 +172,8 @@ class EnhancedArbitrageBot:
         self.position_manager = PositionManager(
             polymarket_client=self.polymarket,
             max_positions=self.config.trading.max_positions,
-            position_size_usd=self.config.trading.position_size_usd
+            position_size_usd=self.config.trading.position_size_usd,
+            paper_trader=self.paper_trader
         )
         
         # Enhanced components
@@ -388,6 +432,20 @@ class EnhancedArbitrageBot:
         self.logger.info(f"Strategy: {self.strategy_name}")
         self.logger.info(f"Monitoring: {self.config.markets.enabled_symbols}")
         
+        if self.paper_trading:
+            self.logger.info("=" * 60)
+            self.logger.info("📝 PAPER TRADING MODE ACTIVE")
+            self.logger.info("All trades are SIMULATED - No real money at risk")
+            stats = self.paper_trader.get_performance_stats()
+            self.logger.info(f"Virtual Balance: ${stats['current_balance']:.2f}")
+            self.logger.info("=" * 60)
+            
+            # Send Telegram startup notification
+            try:
+                await self.paper_trader.send_startup_notification()
+            except Exception as e:
+                self.logger.warning(f"Could not send startup notification: {e}")
+        
         self.running = True
         
         try:
@@ -441,6 +499,10 @@ class EnhancedArbitrageBot:
             f"Total P&L: ${stats['total_pnl']:.2f}"
         )
         
+        # Log paper trading report if in paper mode
+        if self.paper_trading and self.paper_trader:
+            self.logger.info("\n" + self.paper_trader.generate_report())
+        
         self._shutdown_event.set()
     
     async def emergency_stop(self, reason: str) -> None:
@@ -478,12 +540,37 @@ async def main():
         help='Path to configuration file'
     )
     parser.add_argument(
+        '--mode',
+        choices=['paper', 'live'],
+        default=None,
+        help='Trading mode: paper (simulated) or live (real money). Overrides config setting.'
+    )
+    parser.add_argument(
         '--dry-run',
         action='store_true',
-        help='Run without executing trades'
+        help='Run without executing trades (alias for --mode paper)'
+    )
+    parser.add_argument(
+        '--paper-report',
+        action='store_true',
+        help='Generate and display paper trading performance report'
+    )
+    parser.add_argument(
+        '--paper-reset',
+        action='store_true',
+        help='Reset paper trading account to initial balance'
     )
     
     args = parser.parse_args()
+    
+    # Handle paper trading commands
+    if args.paper_report:
+        print_paper_report()
+        return
+    
+    if args.paper_reset:
+        reset_paper_account(args.config)
+        return
     
     # Check for config file
     if not Path(args.config).exists():
@@ -491,10 +578,17 @@ async def main():
         print("Please copy config.example.json to config.json and configure your API keys")
         sys.exit(1)
     
+    # Determine trading mode
+    trading_mode = args.mode
+    if args.dry_run:
+        trading_mode = "paper"
+    
     # Create bot
     bot = EnhancedArbitrageBot(
         config_path=args.config,
-        strategy=args.strategy
+        strategy=args.strategy,
+        trading_mode=trading_mode,
+        dry_run=args.dry_run
     )
     
     # Setup signal handlers
@@ -523,6 +617,33 @@ async def main():
             else:
                 logging.critical("Max restarts exceeded. Shutting down.")
                 raise
+
+
+def print_paper_report():
+    """Print paper trading performance report."""
+    sys.path.insert(0, str(Path(__file__).parent / "src"))
+    from paper_trader import PaperTrader
+    
+    trader = PaperTrader()
+    report = trader.generate_report()
+    print(report)
+
+
+def reset_paper_account(config_path: str):
+    """Reset paper trading account."""
+    sys.path.insert(0, str(Path(__file__).parent / "src"))
+    from config import Config
+    from paper_trader import PaperTrader
+    
+    if Path(config_path).exists():
+        config = Config(config_path)
+        initial_balance = config.trading.paper_trading_balance
+    else:
+        initial_balance = 10000.0
+    
+    trader = PaperTrader()
+    trader.reset_account(initial_balance)
+    print(f"✅ Paper trading account reset to ${initial_balance:.2f}")
 
 
 if __name__ == "__main__":

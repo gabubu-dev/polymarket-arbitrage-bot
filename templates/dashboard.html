@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Polymarket Trading Bot Dashboard</title>
+    <title>Polymarket Live Dashboard</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         * {
@@ -51,6 +51,57 @@
             box-shadow: 0 0 10px #00ff88;
         }
         
+        .status-indicator.api-connected {
+            background: #667eea;
+            box-shadow: 0 0 10px #667eea;
+        }
+        
+        .data-source-badge {
+            background: #0f3460;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            color: #00ff88;
+            border: 1px solid #00ff88;
+        }
+        
+        .paper-trading-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 1.5rem 2rem;
+            text-align: center;
+            border-bottom: 3px solid #f093fb;
+            display: none;
+        }
+        
+        .paper-trading-banner.active {
+            display: block;
+        }
+        
+        .paper-trading-banner.market-data {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border-bottom: 3px solid #00ff88;
+        }
+        
+        .paper-trading-banner h2 {
+            color: #fff;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .paper-trading-banner p {
+            color: #f0f0f0;
+            font-size: 1.1rem;
+        }
+        
+        .paper-trading-banner .balance {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #fff;
+            margin: 0.5rem 0;
+            text-shadow: 2px 2px 6px rgba(0,0,0,0.4);
+        }
+        
         .container {
             padding: 2rem;
             max-width: 1400px;
@@ -69,6 +120,12 @@
             border-radius: 8px;
             padding: 1.5rem;
             border: 1px solid #0f3460;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 255, 136, 0.1);
         }
         
         .card h3 {
@@ -88,6 +145,16 @@
             color: #ff6b6b;
         }
         
+        .card .value.neutral {
+            color: #667eea;
+        }
+        
+        .card .subtext {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+        
         .charts-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
@@ -99,6 +166,9 @@
             border-radius: 8px;
             padding: 1rem;
             border: 1px solid #0f3460;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
         }
         
         .chart-container h3 {
@@ -106,6 +176,17 @@
             margin-bottom: 1rem;
             padding-bottom: 0.5rem;
             border-bottom: 1px solid #0f3460;
+        }
+        
+        .chart-wrapper {
+            flex: 1;
+            min-height: 300px;
+            position: relative;
+        }
+        
+        .chart-wrapper > div {
+            width: 100%;
+            height: 100%;
         }
         
         .loading {
@@ -122,67 +203,167 @@
             border-radius: 4px;
             margin: 1rem 0;
         }
+        
+        .error-banner {
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid #ff6b6b;
+            color: #ff6b6b;
+            padding: 1rem;
+            text-align: center;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+        }
+        
+        .market-list {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 1rem;
+            border: 1px solid #0f3460;
+            margin-top: 1.5rem;
+        }
+        
+        .market-list h3 {
+            color: #fff;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #0f3460;
+        }
+        
+        .market-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid #0f3460;
+        }
+        
+        .market-item:last-child {
+            border-bottom: none;
+        }
+        
+        .market-name {
+            flex: 1;
+            font-size: 0.875rem;
+        }
+        
+        .market-volume {
+            color: #00ff88;
+            font-weight: bold;
+            margin-right: 1rem;
+        }
+        
+        .market-prob {
+            background: #0f3460;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>🤖 Polymarket Trading Bot</h1>
+        <h1>📊 Polymarket Live Dashboard</h1>
         <div class="status">
+            <span id="data-source" class="data-source-badge" style="display: none;">LIVE DATA</span>
             <span id="status-text">Loading...</span>
             <div id="status-indicator" class="status-indicator"></div>
         </div>
     </div>
     
+    <!-- Banner -->
+    <div id="paper-trading-banner" class="paper-trading-banner">
+        <h2 id="banner-title">📝 PAPER TRADING MODE</h2>
+        <p id="banner-subtitle">All trades are SIMULATED - No real money at risk</p>
+        <div class="balance" id="paper-balance">$10,000.00</div>
+        <p id="paper-pnl">Virtual Balance</p>
+    </div>
+    
     <div class="container">
+        <div id="error-container"></div>
+        
         <div class="summary-cards" id="summary-cards">
             <div class="card">
-                <h3>Open Positions</h3>
-                <div class="value" id="open-positions">-</div>
+                <h3>Active Markets</h3>
+                <div class="value" id="total-markets">-</div>
+                <div class="subtext">Total available markets</div>
             </div>
             <div class="card">
-                <h3>Total P&L</h3>
-                <div class="value" id="total-pnl">-</div>
+                <h3>24h Volume</h3>
+                <div class="value" id="volume-24h">-</div>
+                <div class="subtext">Total trading volume</div>
             </div>
             <div class="card">
-                <h3>Win Rate</h3>
-                <div class="value" id="win-rate">-</div>
+                <h3>Whale Activity</h3>
+                <div class="value" id="whale-count">-</div>
+                <div class="subtext">Large orders detected</div>
             </div>
             <div class="card">
-                <h3>Opportunities</h3>
+                <h3>Arbitrage Ops</h3>
                 <div class="value" id="opportunities">-</div>
+                <div class="subtext">Potential profit opportunities</div>
             </div>
         </div>
         
         <div class="charts-grid">
             <div class="chart-container">
-                <h3>Portfolio Overview</h3>
-                <div id="portfolio-chart" class="loading">Loading chart...</div>
+                <h3>🔥 Trending Markets</h3>
+                <div class="chart-wrapper">
+                    <div id="portfolio-chart" class="loading">Loading chart...</div>
+                </div>
             </div>
             <div class="chart-container">
-                <h3>Trading Activity</h3>
-                <div id="trading-chart" class="loading">Loading chart...</div>
+                <h3>📈 Trading Activity</h3>
+                <div class="chart-wrapper">
+                    <div id="trading-chart" class="loading">Loading chart...</div>
+                </div>
             </div>
             <div class="chart-container">
-                <h3>Whale Activity</h3>
-                <div id="whale-chart" class="loading">Loading chart...</div>
+                <h3>🐋 Whale Activity</h3>
+                <div class="chart-wrapper">
+                    <div id="whale-chart" class="loading">Loading chart...</div>
+                </div>
             </div>
             <div class="chart-container">
-                <h3>Arbitrage Opportunities</h3>
-                <div id="arbitrage-chart" class="loading">Loading chart...</div>
+                <h3>💰 Arbitrage Opportunities</h3>
+                <div class="chart-wrapper">
+                    <div id="arbitrage-chart" class="loading">Loading chart...</div>
+                </div>
             </div>
+        </div>
+        
+        <!-- Trending Markets List -->
+        <div class="market-list" id="trending-section" style="display: none;">
+            <h3>🔥 Top Trending Markets</h3>
+            <div id="trending-markets"></div>
         </div>
     </div>
     
     <script>
         const API_BASE = '';
+        let lastData = null;
         
         async function fetchData() {
             try {
                 const response = await fetch(`${API_BASE}/api/dashboard`);
                 const data = await response.json();
+                lastData = data;
                 updateDashboard(data);
+                updateErrorDisplay(data);
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
+                showError('Failed to connect to dashboard API');
             }
         }
         
@@ -190,88 +371,174 @@
             // Update status
             const statusIndicator = document.getElementById('status-indicator');
             const statusText = document.getElementById('status-text');
+            const dataSourceBadge = document.getElementById('data-source');
             
-            if (data.status.bot_running) {
-                statusIndicator.classList.add('running');
-                statusText.textContent = 'Bot Running';
-            } else {
+            // Check if API is connected
+            if (data.status.api_connected) {
+                statusIndicator.classList.add('api-connected');
                 statusIndicator.classList.remove('running');
-                statusText.textContent = 'Bot Stopped';
+                statusText.textContent = 'Live Data';
+                dataSourceBadge.style.display = 'inline';
+            } else if (data.status.bot_running) {
+                statusIndicator.classList.add('running');
+                statusIndicator.classList.remove('api-connected');
+                statusText.textContent = 'Bot Running';
+                dataSourceBadge.style.display = 'none';
+            } else {
+                statusIndicator.classList.remove('running', 'api-connected');
+                statusText.textContent = 'Data Feed';
+                dataSourceBadge.style.display = 'none';
             }
             
-            // Update summary cards
-            document.getElementById('open-positions').textContent = data.summary.open_positions;
+            // Update summary cards with new metrics
+            const totalMarkets = data.summary.total_markets || data.summary.open_positions || 0;
+            const volume24h = data.summary.volume_24h || 0;
+            const whaleCount = data.summary.whale_activities || 0;
+            const opportunities = data.summary.opportunities || 0;
             
-            const pnlElement = document.getElementById('total-pnl');
-            pnlElement.textContent = `$${data.summary.total_pnl.toFixed(2)}`;
-            pnlElement.classList.toggle('negative', data.summary.total_pnl < 0);
+            document.getElementById('total-markets').textContent = totalMarkets.toLocaleString();
+            document.getElementById('volume-24h').textContent = formatCurrency(volume24h);
+            document.getElementById('whale-count').textContent = whaleCount;
+            document.getElementById('opportunities').textContent = opportunities;
             
-            document.getElementById('win-rate').textContent = 
-                data.performance.win_rate ? `${data.performance.win_rate.toFixed(1)}%` : '-';
-            document.getElementById('opportunities').textContent = data.summary.opportunities;
+            // Update banner
+            const paperBanner = document.getElementById('paper-trading-banner');
+            const bannerTitle = document.getElementById('banner-title');
+            const bannerSubtitle = document.getElementById('banner-subtitle');
+            
+            if (data.status.paper_trading && data.status.paper_trading.enabled) {
+                const isMarketDataOnly = data.status.paper_trading.mode && 
+                    data.status.paper_trading.mode.includes('Market Data');
+                
+                paperBanner.classList.add('active');
+                
+                if (isMarketDataOnly) {
+                    paperBanner.classList.add('market-data');
+                    bannerTitle.textContent = '📊 MARKET DATA MODE';
+                    bannerSubtitle.textContent = 'Real-time Polymarket data - No trading enabled';
+                    document.getElementById('paper-balance').textContent = data.status.data_source || 'Polymarket';
+                    document.getElementById('paper-pnl').textContent = 'Live Data Feed';
+                } else {
+                    paperBanner.classList.remove('market-data');
+                    bannerTitle.textContent = '📝 PAPER TRADING MODE';
+                    bannerSubtitle.textContent = 'All trades are SIMULATED - No real money at risk';
+                    
+                    const balance = data.status.paper_trading.virtual_balance || 10000;
+                    const initialBalance = data.status.paper_trading.initial_balance || 10000;
+                    const pnl = balance - initialBalance;
+                    const pnlPercent = ((pnl / initialBalance) * 100).toFixed(2);
+                    
+                    document.getElementById('paper-balance').textContent = formatCurrency(balance);
+                    
+                    const pnlSign = pnl >= 0 ? '+' : '';
+                    document.getElementById('paper-pnl').textContent = 
+                        `Virtual Balance (${pnlSign}${formatCurrency(pnl)} / ${pnlSign}${pnlPercent}%)`;
+                }
+            } else {
+                paperBanner.classList.remove('active');
+            }
+            
+            // Update trending markets list
+            if (data.markets && data.markets.trending && data.markets.trending.length > 0) {
+                updateTrendingMarkets(data.markets.trending);
+            }
+        }
+        
+        function updateTrendingMarkets(markets) {
+            const section = document.getElementById('trending-section');
+            const container = document.getElementById('trending-markets');
+            
+            section.style.display = 'block';
+            container.innerHTML = markets.slice(0, 5).map(m => `
+                <div class="market-item">
+                    <span class="market-name">${escapeHtml(m.question)}</span>
+                    <span class="market-volume">$${(m.volume / 1000000).toFixed(2)}M</span>
+                    <span class="market-prob">${m.yes_probability ? (m.yes_probability * 100).toFixed(1) + '%' : 'N/A'}</span>
+                </div>
+            `).join('');
+        }
+        
+        function updateErrorDisplay(data) {
+            const container = document.getElementById('error-container');
+            
+            if (data.errors) {
+                const errors = [];
+                if (data.errors.market_error) errors.push(`Market API: ${data.errors.market_error}`);
+                if (data.errors.whale_error) errors.push(`Whale Tracker: ${data.errors.whale_error}`);
+                if (data.errors.arbitrage_error) errors.push(`Arbitrage: ${data.errors.arbitrage_error}`);
+                
+                if (errors.length > 0) {
+                    container.innerHTML = `<div class="error-banner">⚠️ ${errors.join(' | ')}</div>`;
+                    return;
+                }
+            }
+            
+            container.innerHTML = '';
+        }
+        
+        function showError(message) {
+            const container = document.getElementById('error-container');
+            container.innerHTML = `<div class="error-banner">⚠️ ${escapeHtml(message)}</div>`;
+        }
+        
+        function formatCurrency(value) {
+            if (value >= 1000000) {
+                return '$' + (value / 1000000).toFixed(2) + 'M';
+            } else if (value >= 1000) {
+                return '$' + (value / 1000).toFixed(1) + 'K';
+            }
+            return '$' + value.toFixed(2);
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         async function loadCharts() {
-            // Load portfolio chart
-            try {
-                const response = await fetch(`${API_BASE}/api/charts/portfolio`);
-                const data = await response.json();
-                if (data.chart) {
-                    const chartData = JSON.parse(data.chart);
-                    Plotly.newPlot('portfolio-chart', chartData.data, chartData.layout);
+            const chartConfig = {responsive: true, displayModeBar: false};
+            
+            async function loadChart(chartId, endpoint) {
+                try {
+                    const elem = document.getElementById(chartId);
+                    const response = await fetch(`${API_BASE}${endpoint}`);
+                    const data = await response.json();
+                    
+                    if (data.chart) {
+                        const chartData = JSON.parse(data.chart);
+                        chartData.layout.autosize = true;
+                        chartData.layout.height = 300;
+                        
+                        elem.textContent = '';
+                        elem.className = '';
+                        
+                        Plotly.newPlot(chartId, chartData.data, chartData.layout, chartConfig);
+                    }
+                } catch (error) {
+                    console.error(`Error loading ${chartId}:`, error);
+                    const elem = document.getElementById(chartId);
+                    elem.className = 'error';
+                    elem.textContent = 'Error loading chart';
                 }
-            } catch (error) {
-                document.getElementById('portfolio-chart').innerHTML = 
-                    '<div class="error">Error loading chart</div>';
             }
             
-            // Load trading chart
-            try {
-                const response = await fetch(`${API_BASE}/api/charts/trading`);
-                const data = await response.json();
-                if (data.chart) {
-                    const chartData = JSON.parse(data.chart);
-                    Plotly.newPlot('trading-chart', chartData.data, chartData.layout);
-                }
-            } catch (error) {
-                document.getElementById('trading-chart').innerHTML = 
-                    '<div class="error">Error loading chart</div>';
-            }
-            
-            // Load whale chart
-            try {
-                const response = await fetch(`${API_BASE}/api/charts/whales`);
-                const data = await response.json();
-                if (data.chart) {
-                    const chartData = JSON.parse(data.chart);
-                    Plotly.newPlot('whale-chart', chartData.data, chartData.layout);
-                }
-            } catch (error) {
-                document.getElementById('whale-chart').innerHTML = 
-                    '<div class="error">Error loading chart</div>';
-            }
-            
-            // Load arbitrage chart
-            try {
-                const response = await fetch(`${API_BASE}/api/charts/arbitrage`);
-                const data = await response.json();
-                if (data.chart) {
-                    const chartData = JSON.parse(data.chart);
-                    Plotly.newPlot('arbitrage-chart', chartData.data, chartData.layout);
-                }
-            } catch (error) {
-                document.getElementById('arbitrage-chart').innerHTML = 
-                    '<div class="error">Error loading chart</div>';
-            }
+            await Promise.all([
+                loadChart('portfolio-chart', '/api/charts/portfolio'),
+                loadChart('trading-chart', '/api/charts/trading'),
+                loadChart('whale-chart', '/api/charts/whales'),
+                loadChart('arbitrage-chart', '/api/charts/arbitrage')
+            ]);
         }
         
         // Initial load
         fetchData();
         loadCharts();
         
-        // Refresh every 30 seconds
-        setInterval(fetchData, 30000);
-        setInterval(loadCharts, 60000);
+        // Refresh intervals
+        setInterval(fetchData, 30000);  // Dashboard data every 30s
+        setInterval(loadCharts, 60000); // Charts every 60s
     </script>
 </body>
 </html>
