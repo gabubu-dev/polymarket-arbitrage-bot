@@ -376,6 +376,180 @@ class TelegramAlerter:
         self.logger.info("🔄 Resetting Telegram alert state")
         self.alerted_thresholds.clear()
         self._save_state()
+    
+    async def send_competitive_benchmark(
+        self,
+        our_win_rate: float,
+        benchmark_data: Dict[str, Any]
+    ) -> bool:
+        """
+        Send competitive benchmarking alert.
+        
+        Args:
+            our_win_rate: Our bot's win rate
+            benchmark_data: Benchmark data from TwitterIntelligence
+            
+        Returns:
+            True if sent successfully
+        """
+        rank = benchmark_data.get('rank', 'Unknown')
+        percentile = benchmark_data.get('percentile', 0)
+        competitive_bots = benchmark_data.get('competitive_bots', 0)
+        better_than = benchmark_data.get('better_than', 0)
+        top_bot_win_rate = benchmark_data.get('top_bot_win_rate', 0)
+        avg_competitor = benchmark_data.get('avg_competitor_win_rate', 0)
+        
+        # Choose emoji based on performance
+        if percentile >= 80:
+            emoji = "🏆"
+        elif percentile >= 60:
+            emoji = "👍"
+        elif percentile >= 40:
+            emoji = "📊"
+        else:
+            emoji = "⚠️"
+        
+        message = (
+            f"{emoji} <b>Competitive Benchmark Report</b>\n\n"
+            f"🤖 <b>Our Win Rate:</b> {our_win_rate:.1f}%\n"
+            f"📊 <b>Rank:</b> {rank} ({percentile:.0f}th percentile)\n"
+            f"🎯 <b>Competitive Bots:</b> {competitive_bots}\n"
+            f"✅ <b>Better Than:</b> {better_than} bots\n\n"
+            f"🏅 <b>Top Bot:</b> {top_bot_win_rate:.1f}%\n"
+            f"📈 <b>Competitor Avg:</b> {avg_competitor:.1f}%\n\n"
+            f"<i>Updated from Twitter intelligence</i>"
+        )
+        
+        return await self.send_message(message, parse_mode="HTML")
+    
+    async def send_bot_discovery_alert(
+        self,
+        bot_handle: str,
+        win_rate: Optional[float],
+        strategies: List[str]
+    ) -> bool:
+        """
+        Alert when discovering a new competitive bot.
+        
+        Args:
+            bot_handle: Twitter handle
+            win_rate: Bot's win rate (if available)
+            strategies: Strategies used by the bot
+            
+        Returns:
+            True if sent successfully
+        """
+        win_rate_str = f"{win_rate:.1f}%" if win_rate else "Unknown"
+        strategies_str = ", ".join(strategies) if strategies else "Unknown"
+        
+        message = (
+            f"🔍 <b>New Bot Discovered</b>\n\n"
+            f"👤 <b>Handle:</b> @{bot_handle}\n"
+            f"🎯 <b>Win Rate:</b> {win_rate_str}\n"
+            f"📊 <b>Strategies:</b> {strategies_str}\n\n"
+            f"<i>Analyzing for competitive insights...</i>"
+        )
+        
+        return await self.send_message(message, parse_mode="HTML")
+    
+    async def send_strategy_adaptation_alert(
+        self,
+        strategy_name: str,
+        reason: str,
+        priority_change: str
+    ) -> bool:
+        """
+        Alert when strategy is adapted based on competitive intel.
+        
+        Args:
+            strategy_name: Name of strategy adapted
+            reason: Reason for adaptation
+            priority_change: Description of priority change
+            
+        Returns:
+            True if sent successfully
+        """
+        message = (
+            f"🔧 <b>Strategy Adaptation</b>\n\n"
+            f"📊 <b>Strategy:</b> {strategy_name}\n"
+            f"🎯 <b>Change:</b> {priority_change}\n"
+            f"💡 <b>Reason:</b> {reason}\n\n"
+            f"<i>Auto-optimizing based on market intelligence</i>"
+        )
+        
+        return await self.send_message(message, parse_mode="HTML")
+    
+    async def send_market_opportunity_alert(
+        self,
+        market_question: str,
+        category: str,
+        profitability_score: float,
+        volume_24h: float,
+        spread: float
+    ) -> bool:
+        """
+        Alert about high-value market opportunity discovered.
+        
+        Args:
+            market_question: Market question
+            category: Market category
+            profitability_score: Profitability score
+            volume_24h: 24h volume
+            spread: Market spread
+            
+        Returns:
+            True if sent successfully
+        """
+        message = (
+            f"💎 <b>High-Value Opportunity</b>\n\n"
+            f"❓ <b>Market:</b> {market_question[:100]}\n"
+            f"📂 <b>Category:</b> {category.title()}\n"
+            f"⭐ <b>Score:</b> {profitability_score:.3f}\n"
+            f"💰 <b>Volume 24h:</b> ${volume_24h:,.0f}\n"
+            f"📊 <b>Spread:</b> {spread*100:.2f}%\n\n"
+            f"<i>Real Polymarket market discovered</i>"
+        )
+        
+        return await self.send_message(message, parse_mode="HTML")
+    
+    async def send_intelligence_summary(
+        self,
+        total_bots: int,
+        top_strategies: Dict[str, Any],
+        market_stats: Dict[str, Any]
+    ) -> bool:
+        """
+        Send daily intelligence gathering summary.
+        
+        Args:
+            total_bots: Total bots discovered
+            top_strategies: Top performing strategies
+            market_stats: Market discovery statistics
+            
+        Returns:
+            True if sent successfully
+        """
+        # Format top strategies
+        strategies_text = ""
+        for strat, data in list(top_strategies.items())[:3]:
+            count = data.get('count', 0)
+            avg_win = data.get('avg_win_rate', 0)
+            strategies_text += f"  • {strat}: {avg_win:.1f}% avg ({count} bots)\n"
+        
+        total_markets = market_stats.get('total_markets', 0)
+        avg_volume = market_stats.get('avg_volume', 0)
+        
+        message = (
+            f"🧠 <b>Intelligence Summary</b>\n"
+            f"<i>{datetime.now().strftime('%Y-%m-%d')}</i>\n\n"
+            f"🤖 <b>Bots Tracked:</b> {total_bots}\n"
+            f"📊 <b>Markets Discovered:</b> {total_markets}\n"
+            f"💰 <b>Avg Market Volume:</b> ${avg_volume:,.0f}\n\n"
+            f"🏆 <b>Top Strategies:</b>\n{strategies_text}\n"
+            f"<i>Competitive intelligence active</i>"
+        )
+        
+        return await self.send_message(message, parse_mode="HTML")
 
 
 # Test function

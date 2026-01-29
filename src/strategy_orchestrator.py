@@ -1,13 +1,13 @@
 """
 Strategy orchestrator for combining multiple arbitrage strategies.
 
-Manages execution of multiple strategies with proper resource allocation
-and conflict resolution.
+Manages execution of multiple strategies with proper resource allocation,
+conflict resolution, and competitive intelligence integration.
 """
 
 import asyncio
 import logging
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Any
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -286,6 +286,149 @@ class StrategyOrchestrator:
     def get_active_strategy_for_market(self, market_id: str) -> Optional[StrategyType]:
         """Get which strategy has an active position in a market."""
         return self._active_positions.get(market_id)
+    
+    def incorporate_competitive_intel(self, 
+                                    strategy_analysis: Dict[str, Any]) -> None:
+        """
+        Incorporate competitive intelligence into strategy weights.
+        
+        Adjusts strategy priorities based on what successful bots are using.
+        
+        Args:
+            strategy_analysis: Analysis from TwitterIntelligence.analyze_strategies()
+        """
+        self.logger.info("Incorporating competitive intelligence into strategy weights")
+        
+        # Map strategy names to types
+        strategy_map = {
+            'arbitrage': StrategyType.SPREAD,
+            'latency': StrategyType.LATENCY,
+            'momentum': StrategyType.MOMENTUM,
+            'whale tracking': StrategyType.WHALE,
+            'whale follow': StrategyType.WHALE,
+        }
+        
+        for strategy_name, data in strategy_analysis.items():
+            avg_win_rate = data.get('avg_win_rate', 0)
+            count = data.get('count', 0)
+            
+            # Map to our strategy type
+            strategy_type = strategy_map.get(strategy_name.lower())
+            if not strategy_type or strategy_type not in self._strategies:
+                continue
+            
+            config = self._strategies[strategy_type]
+            
+            # Increase priority if strategy is popular and successful
+            if avg_win_rate > 60 and count > 2:
+                old_priority = config.priority
+                config.priority = min(10, config.priority + 1)
+                self.logger.info(
+                    f"Boosted {strategy_type.value} priority: "
+                    f"{old_priority} → {config.priority} "
+                    f"(competitive avg win rate: {avg_win_rate:.1f}%)"
+                )
+            
+            # Decrease priority if strategy is underperforming
+            elif avg_win_rate < 50 and count > 2:
+                old_priority = config.priority
+                config.priority = max(1, config.priority - 1)
+                self.logger.info(
+                    f"Reduced {strategy_type.value} priority: "
+                    f"{old_priority} → {config.priority} "
+                    f"(competitive avg win rate: {avg_win_rate:.1f}%)"
+                )
+    
+    def adapt_to_market_winners(self, 
+                               top_performers: List[Any]) -> None:
+        """
+        Adapt strategy based on what top performing bots are doing.
+        
+        Args:
+            top_performers: List of BotDiscovery objects from TwitterIntelligence
+        """
+        if not top_performers:
+            return
+        
+        self.logger.info(f"Adapting strategy based on {len(top_performers)} top performers")
+        
+        # Collect categories used by top performers
+        popular_categories = {}
+        popular_strategies = {}
+        
+        for bot in top_performers:
+            # Count market categories
+            for category in bot.market_categories:
+                popular_categories[category] = popular_categories.get(category, 0) + 1
+            
+            # Count strategies
+            for strategy in bot.strategies_used:
+                popular_strategies[strategy] = popular_strategies.get(strategy, 0) + 1
+        
+        # Log insights
+        if popular_categories:
+            top_categories = sorted(
+                popular_categories.items(), 
+                key=lambda x: x[1], 
+                reverse=True
+            )[:3]
+            self.logger.info(
+                f"Top market categories by winners: "
+                f"{', '.join(f'{cat} ({cnt})' for cat, cnt in top_categories)}"
+            )
+        
+        if popular_strategies:
+            top_strategies = sorted(
+                popular_strategies.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )[:3]
+            self.logger.info(
+                f"Top strategies by winners: "
+                f"{', '.join(f'{strat} ({cnt})' for strat, cnt in top_strategies)}"
+            )
+    
+    def prioritize_high_profit_plays(self,
+                                    opportunities: List[StrategyOpportunity],
+                                    min_profit_threshold: float = 0.05) -> List[StrategyOpportunity]:
+        """
+        Filter and prioritize opportunities with high profit potential.
+        
+        Profit-first approach: rank by (profit margin × volume × confidence)
+        
+        Args:
+            opportunities: List of opportunities to filter
+            min_profit_threshold: Minimum profit margin (5% default)
+            
+        Returns:
+            Filtered and sorted list of high-profit opportunities
+        """
+        # Filter by minimum profit
+        high_profit = [
+            opp for opp in opportunities
+            if opp.expected_profit >= min_profit_threshold
+        ]
+        
+        # Re-score with profit emphasis
+        for opp in high_profit:
+            # Emphasize profit in scoring (70% weight on profit)
+            profit_score = min(1.0, opp.expected_profit / 0.10)  # Normalize to 10% profit
+            
+            opp.opportunity_score = (
+                profit_score * 0.70 +
+                opp.confidence * 0.20 +
+                opp.urgency * 0.10
+            )
+        
+        # Sort by new profit-focused score
+        high_profit.sort(key=lambda x: x.opportunity_score, reverse=True)
+        
+        self.logger.info(
+            f"Prioritized {len(high_profit)}/{len(opportunities)} "
+            f"high-profit opportunities (>{min_profit_threshold*100}% margin)"
+        )
+        
+        return high_profit
 
 
 class ExecutionQueue:
