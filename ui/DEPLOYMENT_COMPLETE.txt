@@ -1,0 +1,146 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║                   POLYMARKET BOT WEB UI DEPLOYED                     ║
+║                      Status: ✅ OPERATIONAL                          ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+📅 Deployment Date: 2026-02-04 21:09 EST
+👤 Deployed By: Sub-agent polymarket-ui-deploy
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 🌐 ACCESS URLS                                                       │
+└──────────────────────────────────────────────────────────────────────┘
+
+  PRIMARY (Tailscale):
+    → Web UI:     http://100.89.126.70:3000
+    → Backend:    http://100.89.126.70:8000
+    → API Docs:   http://100.89.126.70:8000/docs
+
+  LOCAL:
+    → Web UI:     http://localhost:3000
+    → Backend:    http://localhost:8000
+
+  HOSTNAME: fedora.tail747dab.ts.net
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 📊 CURRENT STATUS                                                    │
+└──────────────────────────────────────────────────────────────────────┘
+
+  ✅ Backend (FastAPI)
+     Process ID:  588151
+     Port:        8000
+     Status:      Running
+     Log:         ~/gubu-workspace/.../backend/backend.log
+
+  ✅ Frontend (React + Vite)
+     Process ID:  588257
+     Port:        3000
+     Status:      Running
+     Log:         ~/gubu-workspace/.../frontend/frontend.log
+
+  ⚠️  Polymarket Bot
+     Status:      Not started (awaiting configuration)
+     Note:        Start via UI Dashboard after configuration
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 🎨 UI FEATURES                                                       │
+└──────────────────────────────────────────────────────────────────────┘
+
+  📈 Dashboard Tab
+     • Real-time P&L (Daily/Weekly/All-time)
+     • Bot status & uptime monitor
+     • Open positions tracker
+     • System resources (CPU, Memory)
+     • Win/Loss statistics
+
+  ⚙️  Configuration Tab
+     • Polymarket API credentials (masked)
+     • Exchange keys (Binance/Coinbase)
+     • Trading parameters (divergence, profit thresholds)
+     • Risk management (stop loss, max daily loss)
+     • Notification settings
+
+  💼 Trades Tab
+     • Complete trade history
+     • Entry/Exit prices
+     • P&L per trade
+     • Status filters
+
+  📋 Logs Tab
+     • Real-time log streaming
+     • Color-coded by severity
+     • Auto-scroll toggle
+     • Clear logs function
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 🔧 SERVICE MANAGEMENT                                                │
+└──────────────────────────────────────────────────────────────────────┘
+
+  CHECK STATUS:
+    lsof -i :3000 :8000
+
+  VIEW LOGS:
+    tail -f ~/gubu-workspace/.../backend/backend.log
+    tail -f ~/gubu-workspace/.../frontend/frontend.log
+
+  STOP SERVICES:
+    kill 588151    # Backend
+    kill 588257    # Frontend
+
+  RESTART:
+    See DEPLOYMENT_INFO.md for full restart script
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ 📝 NEXT STEPS                                                        │
+└──────────────────────────────────────────────────────────────────────┘
+
+  1. Open browser: http://100.89.126.70:3000
+  2. Navigate to "Configuration" tab
+  3. Enter Polymarket API credentials
+  4. Configure exchange API keys (Binance/Coinbase)
+  5. Set trading parameters:
+     - Divergence threshold: 5% (recommended)
+     - Min profit: 2%
+     - Position size: $100
+  6. Set risk limits:
+     - Stop loss: 15%
+     - Max daily loss: $1000
+  7. Click "Save Configuration"
+  8. Return to Dashboard
+  9. Click "Start Bot" button
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ ⚙️  TECHNICAL DETAILS                                                │
+└──────────────────────────────────────────────────────────────────────┘
+
+  STACK:
+    • Backend: FastAPI + Uvicorn
+    • Frontend: React 18 + Vite 5
+    • Styling: Tailwind CSS
+    • Python: 3.14 (with upgraded pydantic 2.12.5)
+
+  SECURITY:
+    • Services bound to 0.0.0.0 for Tailscale access
+    • CORS restricted to localhost + Tailscale hostname
+    • API keys masked in UI (only last 4 chars shown)
+    • No public internet exposure (Tailscale-only)
+
+  MODIFICATIONS:
+    • backend/app/main.py: host 0.0.0.0, CORS updated
+    • frontend/vite.config.js: host 0.0.0.0
+    • backend/requirements.txt: pydantic >=2.11.0 (Py3.14 compat)
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ ✅ SUCCESS CRITERIA MET                                              │
+└──────────────────────────────────────────────────────────────────────┘
+
+  ✓ UI running in background (nohup)
+  ✓ Accessible via Tailscale URL
+  ✓ Backend API responding to health checks
+  ✓ Frontend serving React application
+  ✓ No errors in logs
+  ✓ Documentation created
+
+═══════════════════════════════════════════════════════════════════════
+
+For full documentation, see:
+  ~/gubu-workspace/tmp/repos/polymarket-arbitrage-bot/ui/DEPLOYMENT_INFO.md

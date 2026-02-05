@@ -1,106 +1,241 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import DetailedStats from './DetailedStats';
+import LiveTradeFeed from './LiveTradeFeed';
+import OpenPositions from './OpenPositions';
 
-function Dashboard({ status }) {
-  if (!status) return null
-
-  const { bot, performance } = status
-
-  const stats = [
-    {
-      label: 'Daily P&L',
-      value: `$${performance.daily_pnl.toFixed(2)}`,
-      color: performance.daily_pnl >= 0 ? 'text-green-600' : 'text-red-600',
-      bg: performance.daily_pnl >= 0 ? 'bg-green-50' : 'bg-red-50'
-    },
-    {
-      label: 'Weekly P&L',
-      value: `$${performance.weekly_pnl.toFixed(2)}`,
-      color: performance.weekly_pnl >= 0 ? 'text-green-600' : 'text-red-600',
-      bg: performance.weekly_pnl >= 0 ? 'bg-green-50' : 'bg-red-50'
-    },
-    {
-      label: 'All-Time P&L',
-      value: `$${performance.all_time_pnl.toFixed(2)}`,
-      color: performance.all_time_pnl >= 0 ? 'text-green-600' : 'text-red-600',
-      bg: performance.all_time_pnl >= 0 ? 'bg-green-50' : 'bg-red-50'
-    },
-    {
-      label: 'Win Rate',
-      value: `${performance.win_rate.toFixed(1)}%`,
-      color: performance.win_rate >= 50 ? 'text-green-600' : 'text-orange-600',
-      bg: performance.win_rate >= 50 ? 'bg-green-50' : 'bg-orange-50'
+export default function Dashboard({ status }) {
+  const [combinedStats, setCombinedStats] = useState(null);
+  const [botsInfo, setBotsInfo] = useState(null);
+  
+  useEffect(() => {
+    fetchCombinedData();
+    // Refresh every 1 second for live updates
+    const interval = setInterval(fetchCombinedData, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  const fetchCombinedData = async () => {
+    try {
+      const [statsRes, botsRes] = await Promise.all([
+        axios.get('/api/combined-stats'),
+        axios.get('/api/bots')
+      ]);
+      setCombinedStats(statsRes.data);
+      setBotsInfo(botsRes.data);
+    } catch (err) {
+      console.error('Failed to fetch combined data:', err);
     }
-  ]
+  };
 
-  const systemStats = [
-    { label: 'Total Trades', value: performance.total_trades },
-    { label: 'Open Positions', value: performance.open_positions },
-    { label: 'Winning Trades', value: performance.winning_trades },
-    { label: 'Losing Trades', value: performance.losing_trades }
-  ]
+  if (!status) return null;
+
+  // Prepare stats for DetailedStats component
+  const stats = {
+    combined: {
+      balance: combinedStats?.combined?.total_balance || 2000.00,
+      equity: combinedStats?.combined?.total_equity || 2000.00,
+      pnl: combinedStats?.combined?.total_pnl || 0.00,
+      positions: combinedStats?.combined?.total_open_positions || 0,
+      trades: combinedStats?.combined?.total_trades || 0,
+      winRate: combinedStats?.combined?.combined_win_rate || 0,
+      wins: (combinedStats?.primary?.winning_trades || 0) + (combinedStats?.secondary?.winning_trades || 0),
+      losses: (combinedStats?.primary?.losing_trades || 0) + (combinedStats?.secondary?.losing_trades || 0)
+    },
+    primary: combinedStats?.primary ? {
+      balance: combinedStats.primary.balance,
+      pnl: combinedStats.primary.total_pnl,
+      positions: combinedStats.primary.open_positions
+    } : null,
+    secondary: combinedStats?.secondary ? {
+      balance: combinedStats.secondary.balance,
+      pnl: combinedStats.secondary.total_pnl,
+      positions: combinedStats.secondary.open_positions
+    } : null
+  };
 
   return (
-    <div className="space-y-6">
-      {/* P&L Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, idx) => (
-          <div key={idx} className={`${stat.bg} rounded-lg p-6 border border-gray-200`}>
-            <p className="text-sm text-gray-600 mb-2">{stat.label}</p>
-            <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-          </div>
-        ))}
+    <div className="dashboard p-4 space-y-6">
+      {/* Header */}
+      <div className="header text-center md:text-left">
+        <h1 className="text-3xl font-bold flex items-center justify-center md:justify-start gap-2">
+          <span>🎮</span> Trading Dashboard
+        </h1>
+        <p className="text-sm text-gray-400 mt-1">
+          Updates every second • Simple view for beginners
+        </p>
       </div>
 
-      {/* System Stats */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Trading Statistics</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {systemStats.map((stat, idx) => (
-            <div key={idx} className="text-center">
-              <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-              <p className="text-sm text-gray-600">{stat.label}</p>
+      {/* Welcome Message for Beginners */}
+      <div className="bg-gradient-to-r from-blue-900 to-purple-900 bg-opacity-30 border border-blue-700 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">👋</span>
+          <div>
+            <h3 className="font-semibold text-blue-300 mb-1">Welcome to Trading!</h3>
+            <p className="text-sm text-blue-400">
+              This dashboard shows how your automated trading bot is doing. 
+              <span className="text-green-400"> Green means making money</span>, 
+              <span className="text-red-400"> red means losing money</span>. 
+              It's like betting on sports, but for financial markets!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Your Money Section */}
+      <div>
+        <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
+          <span>💰</span> Your Money & Performance
+        </h2>
+        <DetailedStats stats={stats} />
+      </div>
+
+      {/* Two-column layout for desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Live Trade Feed */}
+        <LiveTradeFeed />
+
+        {/* Bot Status */}
+        <div className="bot-status-panel">
+          <div className="mb-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <span>🤖</span> Bot Status
+            </h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Your automated trading bots (they make trades for you)
+            </p>
+          </div>
+          
+          <div className="space-y-3">
+            {botsInfo?.primary && (
+              <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <span className="font-semibold text-white">Bot #1: Primary</span>
+                    <div className="text-xs text-gray-500">Main trading bot</div>
+                  </div>
+                  <span className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
+                    botsInfo.primary.status === 'running' 
+                      ? 'bg-green-900 bg-opacity-30 text-green-400 border border-green-700' 
+                      : 'bg-red-900 bg-opacity-30 text-red-400 border border-red-700'
+                  }`}>
+                    {botsInfo.primary.status === 'running' && <span className="animate-pulse">●</span>}
+                    {botsInfo.primary.status === 'running' ? '✅ Running' : '⏸️ Stopped'}
+                  </span>
+                </div>
+                {stats.primary && (
+                  <div className="grid grid-cols-3 gap-3 text-sm">
+                    <div className="text-center p-2 bg-gray-800 rounded">
+                      <div className="text-xs text-gray-500 mb-1">Money</div>
+                      <div className="text-white font-semibold">${stats.primary.balance?.toFixed(2)}</div>
+                    </div>
+                    <div className="text-center p-2 bg-gray-800 rounded">
+                      <div className="text-xs text-gray-500 mb-1">Active</div>
+                      <div className="text-white font-semibold">{stats.primary.positions || 0}</div>
+                    </div>
+                    <div className="text-center p-2 bg-gray-800 rounded">
+                      <div className="text-xs text-gray-500 mb-1">Profit/Loss</div>
+                      <div className={`font-semibold ${stats.primary.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        ${Math.abs(stats.primary.pnl)?.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {botsInfo?.secondary && (
+              <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <span className="font-semibold text-white">Bot #2: Secondary</span>
+                    <div className="text-xs text-gray-500">Backup trading bot</div>
+                  </div>
+                  <span className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
+                    botsInfo.secondary.status === 'running' 
+                      ? 'bg-green-900 bg-opacity-30 text-green-400 border border-green-700' 
+                      : 'bg-red-900 bg-opacity-30 text-red-400 border border-red-700'
+                  }`}>
+                    {botsInfo.secondary.status === 'running' && <span className="animate-pulse">●</span>}
+                    {botsInfo.secondary.status === 'running' ? '✅ Running' : '⏸️ Stopped'}
+                  </span>
+                </div>
+                {stats.secondary && (
+                  <div className="grid grid-cols-3 gap-3 text-sm">
+                    <div className="text-center p-2 bg-gray-800 rounded">
+                      <div className="text-xs text-gray-500 mb-1">Money</div>
+                      <div className="text-white font-semibold">${stats.secondary.balance?.toFixed(2)}</div>
+                    </div>
+                    <div className="text-center p-2 bg-gray-800 rounded">
+                      <div className="text-xs text-gray-500 mb-1">Active</div>
+                      <div className="text-white font-semibold">{stats.secondary.positions || 0}</div>
+                    </div>
+                    <div className="text-center p-2 bg-gray-800 rounded">
+                      <div className="text-xs text-gray-500 mb-1">Profit/Loss</div>
+                      <div className={`font-semibold ${stats.secondary.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        ${Math.abs(stats.secondary.pnl)?.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Quick Explainer */}
+            <div className="bg-purple-900 bg-opacity-20 border border-purple-700 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <span className="text-lg">💡</span>
+                <div className="text-xs text-purple-300">
+                  <div className="font-semibold mb-1">What are these bots?</div>
+                  <div className="text-purple-400">
+                    Think of them as your employees who trade for you automatically. 
+                    They watch the markets 24/7 and make trades when they spot opportunities.
+                  </div>
+                </div>
+              </div>
             </div>
-          ))}
+
+            {/* System Info (if available) */}
+            {status?.bot?.running && (
+              <div className="bg-gray-900 rounded-lg p-3 border border-gray-700">
+                <h4 className="font-semibold mb-2 text-sm text-gray-400">System Resources</h4>
+                <div className="text-xs text-gray-500 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Process ID:</span>
+                    <span className="text-white">{status.bot.pid}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>CPU Usage:</span>
+                    <span className="text-white">{status.bot.cpu_percent?.toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Memory:</span>
+                    <span className="text-white">{status.bot.memory_mb?.toFixed(1)} MB</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Bot Status Details */}
-      {bot.running && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">System Status</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm text-gray-600">Process ID</p>
-              <p className="text-lg font-medium">{bot.pid}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">CPU Usage</p>
-              <p className="text-lg font-medium">{bot.cpu_percent?.toFixed(1)}%</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Memory Usage</p>
-              <p className="text-lg font-medium">{bot.memory_mb?.toFixed(1)} MB</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Open Positions Table */}
+      <OpenPositions />
 
-      {/* Status Message */}
-      {!bot.running && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-          <div className="flex items-center">
-            <span className="text-2xl mr-3">⚠️</span>
+      {/* Warning if no bots running */}
+      {!botsInfo?.primary?.status === 'running' && !botsInfo?.secondary?.status === 'running' && (
+        <div className="bg-yellow-900 bg-opacity-20 border border-yellow-700 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">⚠️</span>
             <div>
-              <h3 className="text-lg font-semibold text-yellow-900">Bot is not running</h3>
-              <p className="text-yellow-700 mt-1">
-                Click the "Start Bot" button in the header to begin monitoring for arbitrage opportunities.
+              <h3 className="text-base font-semibold text-yellow-400">Bots are sleeping 😴</h3>
+              <p className="text-sm text-yellow-500 mt-1">
+                Your trading bots aren't running. Click "Start Bot" in the top menu to wake them up and start trading!
               </p>
             </div>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
-
-export default Dashboard

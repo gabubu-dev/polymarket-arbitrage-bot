@@ -43,6 +43,9 @@ class MarketsConfig:
     """Market monitoring configuration."""
     enabled_symbols: list[str] = field(default_factory=lambda: ["BTC/USDT", "ETH/USDT"])
     polymarket_market_types: list[str] = field(default_factory=lambda: ["15MIN_UP", "15MIN_DOWN"])
+    polymarket_categories: list[str] = field(default_factory=lambda: ["crypto", "politics", "sports"])
+    auto_discover_markets: bool = False
+    min_market_liquidity: float = 1000.0
     refresh_interval_seconds: int = 5
 
 

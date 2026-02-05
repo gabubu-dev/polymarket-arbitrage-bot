@@ -2,16 +2,817 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Responsive Design - Mobile & Desktop */
+:root {
+  --mobile-padding: 16px;
+  --card-gap: 12px;
+  --safe-area-top: env(safe-area-inset-top);
+  --safe-area-bottom: env(safe-area-inset-bottom);
+  --safe-area-left: env(safe-area-inset-left);
+  --safe-area-right: env(safe-area-inset-right);
+  
+  /* High Contrast Dark Mode Color System - Desktop Optimized */
+  --bg-primary: #0a0a0a;        /* Softer black for LCD (better for desktop) */
+  --bg-secondary: #1a1a1a;      /* Cards/elevated surfaces (higher contrast) */
+  --bg-tertiary: #2a2a2a;       /* Hover states (more visible) */
+  
+  /* Text - Ultra High Contrast for Desktop */
+  --text-primary: #FFFFFF;      /* Primary text (21:1 contrast) */
+  --text-secondary: #F0F0F0;    /* Secondary text (19:1 contrast - brighter) */
+  --text-tertiary: #C0C0C0;     /* Tertiary text (12:1 contrast - improved) */
+  
+  /* Borders - Higher Contrast */
+  --border-color: #404040;      /* Subtle borders (6:1 contrast - improved) */
+  --border-color-strong: #606060; /* Strong borders (9:1 contrast - improved) */
+  
+  /* Status Colors - Enhanced Brightness for Desktop */
+  --green-bright: #4ade80;      /* Profit/Success (13:1 on black) */
+  --green-dark: #166534;        /* Dark green for backgrounds */
+  --red-bright: #f87171;        /* Loss/Error (8:1 on black) */
+  --red-dark: #7f1d1d;          /* Dark red for backgrounds */
+  --blue-bright: #60a5fa;       /* Info (10:1 on black) */
+  --blue-dark: #1e3a8a;         /* Dark blue for backgrounds */
+  --purple-bright: #c084fc;     /* Purple accent (8:1 on black) */
+  --purple-dark: #581c87;       /* Dark purple for backgrounds */
+  --orange-bright: #fb923c;     /* Warning (10:1 on black) */
+  --yellow-bright: #fbbf24;     /* Yellow (12:1 on black) */
+  
+  /* Interactive - Brighter for Desktop */
+  --button-bg: #3b82f6;         /* Blue button (8:1 on black - brighter) */
+  --button-hover: #2563eb;      /* Darker on hover */
+  --button-text: #FFFFFF;       /* White text (21:1 on blue) */
+}
+
+/* Desktop Specific Optimizations */
+@media (min-width: 1024px) {
+  :root {
+    /* Even higher contrast for desktop */
+    --bg-secondary: #1f1f1f;
+    --bg-tertiary: #2f2f2f;
+    --border-color-strong: #707070;
+    --text-secondary: #F5F5F5;
+  }
+  
+  /* Larger text for desktop readability */
+  body {
+    font-size: 16px;
+  }
+  
+  /* Better spacing */
+  .max-w-7xl {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+  
+  /* Card shadows for depth */
+  .bg-white {
+    box-shadow: 0 4px 6px -1px rgba(255, 255, 255, 0.05), 
+                0 2px 4px -1px rgba(255, 255, 255, 0.03);
+  }
+  
+  /* Hover effects for desktop */
+  .stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Base mobile styles */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
 body {
   margin: 0;
+  padding: var(--safe-area-top) 0 var(--safe-area-bottom) 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Touch-friendly buttons - Apple HIG minimum 44px */
+button {
+  min-height: 44px;
+  min-width: 44px;
+  font-size: 16px !important; /* Prevents zoom on focus in iOS */
+  touch-action: manipulation;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  background-color: var(--bg-primary) !important;
+}
+
+/* Mobile-specific layout adjustments */
+@media (max-width: 768px) {
+  /* Reduce padding on mobile */
+  .max-w-7xl {
+    padding-left: var(--mobile-padding) !important;
+    padding-right: var(--mobile-padding) !important;
+  }
+  
+  /* Stack header elements vertically */
+  header .flex {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 16px;
+  }
+  
+  /* Full-width control buttons on mobile */
+  header .flex.space-x-2 {
+    flex-direction: row !important;
+    width: 100%;
+  }
+  
+  header .flex.space-x-2 button {
+    flex: 1;
+    padding: 12px 8px !important;
+    font-size: 14px !important;
+  }
+  
+  /* Horizontal scroll for tabs */
+  nav.-mb-px {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  
+  nav.-mb-px::-webkit-scrollbar {
+    display: none; /* Chrome, Safari */
+  }
+  
+  /* Better spacing for stat cards on mobile */
+  .grid.gap-6 {
+    gap: var(--card-gap) !important;
+  }
+  
+  /* Ensure grid items don't get too small */
+  .grid.grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  /* Title sizing for mobile */
+  h1 {
+    font-size: 24px !important;
+  }
+  
+  h2 {
+    font-size: 20px !important;
+  }
+  
+  /* Stat card text sizing */
+  .text-3xl {
+    font-size: 28px !important;
+  }
+  
+  .text-2xl {
+    font-size: 22px !important;
+  }
+}
+
+/* iPhone 15 specific (393x852 viewport) */
+@media (max-width: 393px) {
+  :root {
+    --mobile-padding: 12px;
+    --card-gap: 10px;
+  }
+  
+  /* Compact header for smaller screens */
+  h1 {
+    font-size: 22px !important;
+  }
+  
+  /* Even more compact stat cards */
+  .text-3xl {
+    font-size: 24px !important;
+  }
+  
+  /* Smaller button text */
+  header button {
+    font-size: 13px !important;
+    padding: 10px 6px !important;
+  }
+}
+
+/* High Contrast Dark Mode - Comprehensive Tailwind Overrides */
+
+/* Background Colors */
+.bg-gray-100 {
+  background-color: var(--bg-primary) !important;
+}
+
+.bg-white {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.bg-gray-50 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+/* Text Colors - High Contrast */
+.text-gray-900 {
+  color: var(--text-primary) !important;
+}
+
+.text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+.text-gray-500 {
+  color: var(--text-tertiary) !important;
+}
+
+/* Status Colors - WCAG AA Compliant */
+.text-green-600 {
+  color: var(--green-bright) !important;
+}
+
+.bg-green-600 {
+  background-color: var(--green-bright) !important;
+}
+
+.text-red-600 {
+  color: var(--red-bright) !important;
+}
+
+.bg-red-600 {
+  background-color: var(--red-bright) !important;
+}
+
+.text-blue-600 {
+  color: var(--blue-bright) !important;
+}
+
+.bg-blue-600 {
+  background-color: var(--button-bg) !important;
+}
+
+.text-purple-600 {
+  color: var(--purple-bright) !important;
+}
+
+.text-orange-600 {
+  color: var(--orange-bright) !important;
+}
+
+.text-yellow-900 {
+  color: var(--yellow-bright) !important;
+}
+
+/* Background Colors for Status Cards - Higher Contrast for Desktop */
+.bg-green-50 {
+  background-color: rgba(74, 222, 128, 0.15) !important; /* More visible green tint */
+  border: 2px solid rgba(74, 222, 128, 0.5) !important; /* Stronger border */
+}
+
+.bg-red-50 {
+  background-color: rgba(248, 113, 113, 0.15) !important; /* More visible red tint */
+  border: 2px solid rgba(248, 113, 113, 0.5) !important; /* Stronger border */
+}
+
+.bg-blue-50 {
+  background-color: rgba(96, 165, 250, 0.15) !important; /* More visible blue tint */
+  border: 2px solid rgba(96, 165, 250, 0.5) !important; /* Stronger border */
+}
+
+.bg-purple-50 {
+  background-color: rgba(192, 132, 252, 0.15) !important; /* More visible purple tint */
+  border: 2px solid rgba(192, 132, 252, 0.5) !important; /* Stronger border */
+}
+
+.bg-orange-50 {
+  background-color: rgba(251, 146, 60, 0.15) !important; /* More visible orange tint */
+  border: 2px solid rgba(251, 146, 60, 0.5) !important; /* Stronger border */
+}
+
+.bg-yellow-50 {
+  background-color: rgba(251, 191, 36, 0.15) !important; /* More visible yellow tint */
+  border: 2px solid rgba(251, 191, 36, 0.5) !important; /* Stronger border */
+}
+
+.bg-yellow-200 {
+  background-color: rgba(251, 191, 36, 0.2) !important;
+  border: 2px solid rgba(251, 191, 36, 0.6) !important;
+}
+
+/* Desktop - Even stronger card backgrounds */
+@media (min-width: 1024px) {
+  .bg-green-50 {
+    background-color: rgba(74, 222, 128, 0.2) !important;
+    border: 2px solid rgba(74, 222, 128, 0.6) !important;
+  }
+  
+  .bg-red-50 {
+    background-color: rgba(248, 113, 113, 0.2) !important;
+    border: 2px solid rgba(248, 113, 113, 0.6) !important;
+  }
+  
+  .bg-blue-50 {
+    background-color: rgba(96, 165, 250, 0.2) !important;
+    border: 2px solid rgba(96, 165, 250, 0.6) !important;
+  }
+}
+
+/* Border Colors - High Contrast */
+.border-gray-200 {
+  border-color: var(--border-color) !important;
+}
+
+.border-yellow-200 {
+  border-color: rgba(251, 191, 36, 0.4) !important;
+}
+
+/* Shadows - Subtle on dark */
+.shadow {
+  box-shadow: 0 1px 3px 0 rgba(255, 255, 255, 0.05), 0 1px 2px 0 rgba(255, 255, 255, 0.03) !important;
+}
+
+/* Buttons - High Contrast */
+button {
+  background-color: var(--button-bg) !important;
+  color: var(--button-text) !important;
+  border: 1px solid var(--button-hover) !important;
+  transition: all 0.2s ease !important;
+}
+
+button:hover {
+  background-color: var(--button-hover) !important;
+  border-color: var(--blue-bright) !important;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+/* Ensure rounded elements maintain borders - Desktop Enhanced */
+.rounded-lg {
+  border-radius: 12px;
+  border: 1px solid var(--border-color) !important;
+}
+
+@media (min-width: 1024px) {
+  .rounded-lg {
+    border-radius: 16px;
+    border: 2px solid var(--border-color-strong) !important;
+  }
+  
+  /* Cards get extra visual depth on desktop */
+  .bg-white {
+    background-color: var(--bg-secondary) !important;
+    border: 2px solid var(--border-color-strong) !important;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3) !important;
+  }
+  
+  .bg-white:hover {
+    border-color: var(--blue-bright) !important;
+    box-shadow: 0 8px 16px rgba(96, 165, 250, 0.2) !important;
+  }
+}
+
+/* Pulsing animation for status indicators - More visible */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 8px 2px currentColor;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Scrollbar - High Contrast */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color-strong);
+  border-radius: 6px;
+  border: 2px solid var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #777777;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color-strong) var(--bg-primary);
+}
+
+/* Pull-to-refresh visual indicator */
+.pull-to-refresh {
+  position: fixed;
+  top: var(--safe-area-top);
+  left: 50%;
+  transform: translateX(-50%) translateY(-60px);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.9);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color-strong);
+  border-radius: 20px;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+}
+
+.pull-to-refresh.active {
+  transform: translateX(-50%) translateY(20px);
+}
+
+/* Tab Navigation - High Contrast */
+nav button {
+  border-bottom: 2px solid transparent !important;
+  color: var(--text-tertiary) !important;
+  background-color: transparent !important;
+}
+
+nav button:hover {
+  color: var(--text-secondary) !important;
+  border-bottom-color: var(--border-color-strong) !important;
+  background-color: transparent !important;
+}
+
+nav button[aria-current="page"] {
+  color: var(--blue-bright) !important;
+  border-bottom-color: var(--blue-bright) !important;
+  background-color: transparent !important;
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+/* Links */
+a {
+  color: var(--blue-bright);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Inputs */
+input, select, textarea {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none !important;
+  border-color: var(--button-bg) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3) !important;
+}
+
+/* Table Enhancements - Desktop Optimized */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border-color) !important;
+}
+
+th {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  padding: 16px;
+  text-align: left;
+  font-weight: 700;
+  border-bottom: 3px solid var(--border-color-strong) !important;
+  font-size: 15px;
+  letter-spacing: 0.025em;
+}
+
+td {
+  padding: 14px;
+  border-bottom: 1px solid var(--border-color) !important;
+  color: var(--text-secondary) !important;
+  font-size: 14px;
+}
+
+tr:hover {
+  background-color: var(--bg-tertiary) !important;
+  transition: background-color 0.2s ease;
+}
+
+/* Desktop table improvements */
+@media (min-width: 1024px) {
+  th {
+    padding: 18px;
+    font-size: 16px;
+  }
+  
+  td {
+    padding: 16px;
+    font-size: 15px;
+  }
+  
+  tbody tr:hover {
+    background-color: rgba(96, 165, 250, 0.1) !important;
+    border-left: 3px solid var(--blue-bright);
+  }
+}
+
+/* Improve emoji visibility */
+.text-xl, .text-2xl {
+  filter: brightness(1.1);
+}
+
+/* Logs Component - Mobile Optimizations */
+.logs-container {
+  padding: 12px;
+}
+
+.logs-list {
+  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.log-entry {
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Mobile specific logs */
+@media (max-width: 393px) {
+  .logs-list {
+    font-size: 11px;
+    padding: 8px;
+  }
+  
+  .log-entry span {
+    display: inline-block;
+  }
+  
+  /* Compact log format on very small screens */
+  .log-entry {
+    line-height: 1.3;
+    padding: 2px 0;
+  }
+}
+
+/* Tab Switching - Prevent Layout Shifts */
+main > div {
+  min-height: 70vh;
+  position: relative;
+}
+
+main > div > * {
+  width: 100%;
+}
+
+/* Smooth tab transitions */
+main > div {
+  animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Logs Scrolling Improvements */
+.bg-gray-900 {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* iOS smooth scrolling */
+}
+
+/* Custom scrollbar for logs container */
+.bg-gray-900::-webkit-scrollbar {
+  width: 8px;
+}
+
+.bg-gray-900::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bg-gray-900::-webkit-scrollbar-thumb {
+  background: #4B5563;
+  border-radius: 4px;
+}
+
+.bg-gray-900::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
+}
+
+/* Live Trading Dashboard Animations */
+
+/* Trade feed scroll */
+.feed-container {
+  scroll-behavior: smooth;
+}
+
+/* New trade animation */
+@keyframes slideIn {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.trade-item {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Stat cards hover */
+.stat-card {
+  transition: all 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  border-color: #4B5563;
+}
+
+/* Mobile optimizations for live dashboard */
+@media (max-width: 393px) {
+  .feed-container {
+    height: 300px !important;
+  }
+  
+  .stat-card {
+    padding: 8px !important;
+  }
+  
+  .stat-card .text-xl {
+    font-size: 16px !important;
+  }
+}
+
+/* Beginner-Friendly Enhancements */
+
+/* Tooltip styling */
+.cursor-help {
+  cursor: help !important;
+}
+
+/* Game-like stat cards */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.stat-card:hover::before {
+  opacity: 0.5;
+}
+
+/* Emoji improvements for better visibility */
+.text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl {
+  line-height: 1.2;
+}
+
+/* Better table hover states */
+tbody tr:hover {
+  transform: scale(1.005);
+  box-shadow: 0 2px 8px rgba(96, 165, 250, 0.2);
+}
+
+/* Smooth color transitions */
+.text-green-400, .text-red-400, .text-blue-400, .text-yellow-400 {
+  transition: all 0.3s ease;
+}
+
+/* Pulsing status indicators - more prominent */
+@keyframes statusPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+.animate-pulse {
+  animation: statusPulse 2s ease-in-out infinite;
+}
+
+/* Trade item entrance animation - more dramatic */
+@keyframes slideInBounce {
+  0% {
+    transform: translateX(-30px);
+    opacity: 0;
+  }
+  60% {
+    transform: translateX(5px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.trade-item {
+  animation: slideInBounce 0.5s ease-out;
+}
+
+/* Gradient text for headers */
+h1, h2 {
+  background: linear-gradient(135deg, var(--text-primary), var(--blue-bright));
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+/* Better borders for sections */
+.rounded-lg {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+/* Status badge improvements */
+.rounded-full {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Info boxes with better contrast */
+.bg-opacity-20 {
+  backdrop-filter: blur(10px);
+}
+
+/* Make tooltips more visible */
+.tooltip {
+  z-index: 9999 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Better focus states for accessibility */
+*:focus {
+  outline: 2px solid var(--blue-bright);
+  outline-offset: 2px;
+}
+
+/* Improve readability of small text */
+.text-xs {
+  letter-spacing: 0.01em;
+}
+
+/* Better gradient backgrounds */
+.bg-gradient-to-r {
+  background-size: 200% 200%;
+  animation: gradientShift 10s ease infinite;
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }

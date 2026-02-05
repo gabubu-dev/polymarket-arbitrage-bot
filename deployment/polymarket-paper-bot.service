@@ -1,0 +1,24 @@
+[Unit]
+Description=Polymarket Arbitrage Bot (Paper Trading)
+After=network.target
+
+[Service]
+Type=simple
+User=Gabe
+WorkingDirectory=/home/Gabe/gubu-workspace/tmp/repos/polymarket-arbitrage-bot
+ExecStart=/home/Gabe/gubu-workspace/tmp/repos/polymarket-arbitrage-bot/venv/bin/python /home/Gabe/gubu-workspace/tmp/repos/polymarket-arbitrage-bot/bot_paper.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=polymarket-bot
+
+# Environment
+Environment="PYTHONUNBUFFERED=1"
+
+# Resource limits
+CPUQuota=100%
+MemoryLimit=512M
+
+[Install]
+WantedBy=multi-user.target

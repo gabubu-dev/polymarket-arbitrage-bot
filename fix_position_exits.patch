@@ -1,0 +1,18 @@
+--- src/paper_trading.py.orig	2026-02-04 21:35:00.000000000 -0500
++++ src/paper_trading.py	2026-02-04 21:35:00.000000000 -0500
+@@ -98,6 +98,14 @@
+         """Register a callback for price updates."""
+         self.callbacks.append(callback)
+     
++    def get_current_price(self, symbol: str) -> Optional[float]:
++        """
++        Get current price for a symbol.
++        
++        Returns:
++            Current price or None if symbol not found
++        """
++        return self.prices.get(symbol)
++    
+     async def start_all(self):
+         """Start simulated price feed."""
+         self.logger.info("🚀 Starting simulated price feed for all symbols...")

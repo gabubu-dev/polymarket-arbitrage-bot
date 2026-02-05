@@ -8,23 +8,27 @@ function Logs() {
   const [autoScroll, setAutoScroll] = useState(true)
   const [numLines, setNumLines] = useState(100)
   const logsEndRef = useRef(null)
+  const logsContainerRef = useRef(null)
 
   useEffect(() => {
     fetchLogs()
-    const interval = setInterval(fetchLogs, 5000)
+    const interval = setInterval(fetchLogs, 2000) // Refresh every 2 seconds
     return () => clearInterval(interval)
   }, [numLines])
 
   useEffect(() => {
     if (autoScroll) {
-      scrollToBottom()
+      // Delay scroll to ensure DOM has updated
+      setTimeout(scrollToBottom, 100)
     }
   }, [logs, autoScroll])
 
   const fetchLogs = async () => {
     try {
       const response = await axios.get(`/api/logs?lines=${numLines}`)
-      setLogs(response.data.logs)
+      // Handle both old format (array of strings) and new format (array of objects)
+      const rawLogs = response.data.logs || []
+      setLogs(rawLogs)
       setError(null)
       setLoading(false)
     } catch (err) {
@@ -46,15 +50,29 @@ function Logs() {
   }
 
   const scrollToBottom = () => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (autoScroll && logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
   }
 
-  const getLogLineClass = (line) => {
-    if (line.includes('ERROR') || line.includes('error')) return 'text-red-600'
-    if (line.includes('WARNING') || line.includes('warning')) return 'text-yellow-600'
-    if (line.includes('INFO') || line.includes('info')) return 'text-blue-600'
-    if (line.includes('SUCCESS') || line.includes('success')) return 'text-green-600'
-    return 'text-gray-700'
+  // Detect if user manually scrolled up
+  const handleScroll = () => {
+    if (logsContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = logsContainerRef.current
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 50
+      setAutoScroll(isAtBottom)
+    }
+  }
+
+  const getLevelColor = (level) => {
+    switch (level?.toUpperCase()) {
+      case 'ERROR': return 'text-red-500'
+      case 'WARNING': return 'text-yellow-500'
+      case 'INFO': return 'text-blue-400'
+      case 'DEBUG': return 'text-gray-400'
+      case 'SUCCESS': return 'text-green-500'
+      default: return 'text-gray-300'
+    }
   }
 
   if (loading) {
@@ -121,12 +139,50 @@ function Logs() {
             No logs available
           </div>
         ) : (
-          <div className="bg-gray-900 rounded-lg p-4 overflow-auto max-h-[600px] font-mono text-sm">
-            {logs.map((line, idx) => (
-              <div key={idx} className={`${getLogLineClass(line)} mb-1`}>
-                {line}
-              </div>
-            ))}
+          <div 
+            ref={logsContainerRef}
+            onScroll={handleScroll}
+            className="bg-gray-900 rounded-lg p-4 overflow-y-auto font-mono text-xs leading-relaxed"
+            style={{ 
+              height: '65vh',
+              maxHeight: '65vh',
+              minHeight: '400px'
+            }}
+          >
+            {logs.map((log, idx) => {
+              // Handle both string format (old) and object format (new)
+              if (typeof log === 'string') {
+                return (
+                  <div key={idx} className="text-gray-300 mb-1">
+                    {log}
+                  </div>
+                )
+              }
+              
+              // Structured log format
+              return (
+                <div key={idx} className="mb-1 hover:bg-gray-800 px-2 py-1 rounded transition-colors">
+                  {log.timestamp && (
+                    <span className="text-gray-500 mr-2">
+                      {log.timestamp}
+                    </span>
+                  )}
+                  {log.level && (
+                    <span className={`${getLevelColor(log.level)} font-semibold mr-2`}>
+                      [{log.level}]
+                    </span>
+                  )}
+                  {log.logger && (
+                    <span className="text-purple-400 mr-2">
+                      {log.logger}
+                    </span>
+                  )}
+                  <span className="text-gray-200">
+                    {log.message}
+                  </span>
+                </div>
+              )
+            })}
             <div ref={logsEndRef} />
           </div>
         )}

@@ -83,11 +83,29 @@ class RiskManager:
             )
             return True, current_price, "take_profit"
         
-        # Check if market is about to resolve (15-minute markets)
-        # In real implementation, track market expiration time
-        time_held = datetime.now() - position.entry_time
+        # Check if market is about to resolve or has expired (15-minute markets)
+        # Convert entry_time to datetime if it's a string
+        if isinstance(position.entry_time, str):
+            from datetime import datetime as dt
+            entry_time = dt.fromisoformat(position.entry_time.replace('Z', '+00:00'))
+        else:
+            entry_time = position.entry_time
+        
+        time_held = datetime.now() - entry_time
+        
+        # Force close if position is older than 20 minutes (market definitely expired)
+        if time_held > timedelta(minutes=20):
+            self.logger.warning(
+                f"Force closing expired position {position.position_id}: "
+                f"held for {time_held.total_seconds()/60:.1f} minutes"
+            )
+            return True, current_price, "market_expired"
+        
+        # Close before market resolution (14.5 minutes)
         if time_held > timedelta(minutes=14, seconds=30):
-            # Close position before market resolution
+            self.logger.info(
+                f"Closing position before expiration {position.position_id}"
+            )
             return True, current_price, "approaching_expiration"
         
         return False, 0.0, ""

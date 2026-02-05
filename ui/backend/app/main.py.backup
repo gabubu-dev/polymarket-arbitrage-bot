@@ -50,10 +50,6 @@ TRADES_LOG_PATH = BOT_ROOT / "logs" / "trades.json"
 # Point to the actual paper trading database in the Stable folder
 PAPER_TRADING_DB = Path.home() / "Stable" / "polymarket-bot" / "paper_trading.db"
 
-# Multi-bot support: Database paths for both bots
-PRIMARY_BOT_DB = Path.home() / "Stable" / "polymarket-bot" / "paper_trading.db"
-SECONDARY_BOT_DB = Path.home() / "gubu-workspace" / "tmp" / "repos" / "polymarket-arbitrage-bot" / "paper_trading.db"
-
 
 # ============================================================================
 # Pydantic Models
@@ -234,25 +230,23 @@ def get_bot_status() -> BotStatus:
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             bot_pid = None
     
-    # Try to find bot process by searching for main.py or bot_paper.py
+    # Try to find bot process by searching for bot.py
     for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
         try:
             cmdline = proc.info['cmdline']
-            if cmdline:
-                cmdline_str = ' '.join(cmdline)
-                if ('main.py' in cmdline_str or 'bot_paper.py' in cmdline_str) and 'python' in cmdline_str.lower():
-                    bot_pid = proc.info['pid']
-                    process = psutil.Process(bot_pid)
-                    create_time = process.create_time()
-                    uptime = int(datetime.now().timestamp() - create_time)
-                    
-                    return BotStatus(
-                        running=True,
-                        pid=bot_pid,
-                        uptime_seconds=uptime,
-                        cpu_percent=process.cpu_percent(interval=0.1),
-                        memory_mb=process.memory_info().rss / 1024 / 1024
-                    )
+            if cmdline and 'bot.py' in ' '.join(cmdline):
+                bot_pid = proc.info['pid']
+                process = psutil.Process(bot_pid)
+                create_time = process.create_time()
+                uptime = int(datetime.now().timestamp() - create_time)
+                
+                return BotStatus(
+                    running=True,
+                    pid=bot_pid,
+                    uptime_seconds=uptime,
+                    cpu_percent=process.cpu_percent(interval=0.1),
+                    memory_mb=process.memory_info().rss / 1024 / 1024
+                )
         except (psutil.NoSuchProcess, psutil.AccessDenied, KeyError):
             continue
     
@@ -342,50 +336,16 @@ def calculate_performance() -> PerformanceStats:
     )
 
 
-def get_recent_logs(num_lines: int = 100) -> List[Dict[str, str]]:
-    """Get recent log lines, parsed and structured."""
-    import re
-    
-    # Use paper_bot_live.log instead of logs/bot.log
-    log_file = BOT_ROOT / "paper_bot_live.log"
-    if not log_file.exists():
+def get_recent_logs(num_lines: int = 100) -> List[str]:
+    """Get recent log lines."""
+    if not LOG_PATH.exists():
         return []
     
     try:
-        with open(log_file, 'r') as f:
+        with open(LOG_PATH, 'r') as f:
             lines = f.readlines()
-            recent_lines = lines[-num_lines:] if len(lines) > num_lines else lines
-        
-        parsed_logs = []
-        for line in recent_lines:
-            # Strip ANSI color codes
-            clean_line = re.sub(r'\x1b\[[0-9;]*m', '', line.strip())
-            
-            if not clean_line:
-                continue
-            
-            # Parse timestamp and level
-            # Format: 2026-02-04 22:35:45 - PaperTradingBot - INFO - Message
-            match = re.match(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) - (\S+) - (\w+) - (.+)', clean_line)
-            if match:
-                parsed_logs.append({
-                    "timestamp": match.group(1),
-                    "logger": match.group(2),
-                    "level": match.group(3),
-                    "message": match.group(4).strip()
-                })
-            else:
-                # Fallback for unparsed lines (continuation lines, etc.)
-                parsed_logs.append({
-                    "timestamp": "",
-                    "logger": "",
-                    "level": "INFO",
-                    "message": clean_line
-                })
-        
-        return parsed_logs
-    except Exception as e:
-        print(f"Error reading logs: {e}")
+            return [line.strip() for line in lines[-num_lines:]]
+    except Exception:
         return []
 
 
@@ -564,9 +524,9 @@ async def restart_bot(background_tasks: BackgroundTasks):
 
 @app.get("/api/logs")
 async def get_logs(lines: int = 100):
-    """Get recent log lines, parsed and structured."""
+    """Get recent log lines."""
     logs = get_recent_logs(lines)
-    return {"logs": logs, "count": len(logs)}
+    return {"logs": logs}
 
 
 @app.delete("/api/logs")
@@ -615,50 +575,49 @@ async def get_positions():
 @app.get("/api/paper-stats")
 async def get_paper_stats():
     """Get paper trading statistics: balance, P&L, trade count, win rate."""
-    if not SECONDARY_BOT_DB.exists():
+    if not PAPER_TRADING_DB.exists():
         return {
-            "balance": 100.0,
+            "balance": 1000.0,
             "total_pnl": 0.0,
             "total_trades": 0,
             "winning_trades": 0,
             "losing_trades": 0,
             "win_rate": 0.0,
             "open_positions": 0,
-            "total_equity": 100.0
+            "total_equity": 1000.0
         }
     
     try:
-        conn = sqlite3.connect(str(SECONDARY_BOT_DB))
+        conn = sqlite3.connect(str(PAPER_TRADING_DB))
         cursor = conn.cursor()
         
         # Get current balance
         cursor.execute("SELECT value FROM state WHERE key='balance'")
         balance_row = cursor.fetchone()
-        balance = float(balance_row[0]) if balance_row else 100.0
+        balance = float(balance_row[0]) if balance_row else 1000.0
         
-        # Get trade statistics from positions table (not trades)
+        # Get trade statistics
         cursor.execute("""
             SELECT 
                 COUNT(*) as total_trades,
-                COALESCE(SUM(CASE WHEN pnl > 0 THEN 1 ELSE 0 END), 0) as winning_trades,
-                COALESCE(SUM(CASE WHEN pnl < 0 THEN 1 ELSE 0 END), 0) as losing_trades,
-                COALESCE(SUM(pnl), 0) as total_pnl
-            FROM positions
-            WHERE exit_time IS NOT NULL
+                COALESCE(SUM(CASE WHEN realized_pnl > 0 THEN 1 ELSE 0 END), 0) as winning_trades,
+                COALESCE(SUM(CASE WHEN realized_pnl < 0 THEN 1 ELSE 0 END), 0) as losing_trades,
+                COALESCE(SUM(realized_pnl), 0) as total_pnl
+            FROM trades
+            WHERE realized_pnl IS NOT NULL
         """)
         
         trade_stats = cursor.fetchone()
         total_trades, winning_trades, losing_trades, total_pnl = trade_stats
         
-        # Get open positions count (where exit_time IS NULL)
-        cursor.execute("SELECT COUNT(*) FROM positions WHERE exit_time IS NULL")
+        # Get open positions count
+        cursor.execute("SELECT COUNT(*) FROM positions")
         open_positions = cursor.fetchone()[0]
         
         # Get total positions value
         cursor.execute("""
-            SELECT COALESCE(SUM(size_usd), 0) as positions_value
+            SELECT COALESCE(SUM(shares * entry_price), 0) as positions_value
             FROM positions
-            WHERE exit_time IS NULL
         """)
         positions_value = cursor.fetchone()[0]
         
@@ -685,22 +644,19 @@ async def get_paper_stats():
 @app.get("/api/paper-trades")
 async def get_paper_trades(limit: int = 50):
     """Get recent paper trades from database."""
-    if not SECONDARY_BOT_DB.exists():
+    if not PAPER_TRADING_DB.exists():
         return {"trades": [], "count": 0}
     
     try:
-        conn = sqlite3.connect(str(SECONDARY_BOT_DB))
+        conn = sqlite3.connect(str(PAPER_TRADING_DB))
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT position_id as id, entry_time as timestamp, market_id, 
-                   side, direction, size_usd, entry_price as price, 
-                   exit_price, exit_time, pnl as realized_pnl, 
-                   status, exit_reason
-            FROM positions
-            WHERE exit_time IS NOT NULL
-            ORDER BY exit_time DESC
+            SELECT id, timestamp, market_id, outcome, side, shares, price, 
+                   amount, fees, slippage, total_cost, realized_pnl, realized_pnl_percent
+            FROM trades
+            ORDER BY timestamp DESC
             LIMIT ?
         """, (limit,))
         
@@ -717,7 +673,7 @@ async def get_paper_trades(limit: int = 50):
 async def get_balance():
     """Get current balance and equity from paper trading."""
     if not PAPER_TRADING_DB.exists():
-        return {"balance": 100.0, "equity": 1000.0, "positions_value": 0.0}
+        return {"balance": 1000.0, "equity": 1000.0, "positions_value": 0.0}
     
     try:
         conn = sqlite3.connect(str(PAPER_TRADING_DB))
@@ -726,7 +682,7 @@ async def get_balance():
         # Get current balance
         cursor.execute("SELECT value FROM state WHERE key='balance'")
         balance_row = cursor.fetchone()
-        balance = float(balance_row[0]) if balance_row else 100.0
+        balance = float(balance_row[0]) if balance_row else 1000.0
         
         # Get total positions value
         cursor.execute("""
@@ -758,207 +714,6 @@ async def get_balance():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-
-
-# ============================================================================
-# UNIFIED MULTI-BOT ENDPOINTS
-# ============================================================================
-
-def get_db_stats(db_path: Path) -> Dict[str, Any]:
-    """Get stats from a single paper trading database."""
-    if not db_path.exists():
-        return {
-            "balance": 100.0,
-            "total_pnl": 0.0,
-            "total_trades": 0,
-            "winning_trades": 0,
-            "losing_trades": 0,
-            "win_rate": 0.0,
-            "open_positions": 0,
-            "total_equity": 100.0,
-            "positions_value": 0.0
-        }
-    
-    try:
-        conn = sqlite3.connect(str(db_path))
-        cursor = conn.cursor()
-        
-        # Get current balance
-        cursor.execute("SELECT value FROM state WHERE key='balance'")
-        balance_row = cursor.fetchone()
-        balance = float(balance_row[0]) if balance_row else 100.0
-        
-        # Get trade statistics from positions table (not trades)
-        cursor.execute("""
-            SELECT 
-                COUNT(*) as total_trades,
-                COALESCE(SUM(CASE WHEN pnl > 0 THEN 1 ELSE 0 END), 0) as winning_trades,
-                COALESCE(SUM(CASE WHEN pnl < 0 THEN 1 ELSE 0 END), 0) as losing_trades,
-                COALESCE(SUM(pnl), 0) as total_pnl
-            FROM positions
-            WHERE exit_time IS NOT NULL
-        """)
-        
-        trade_stats = cursor.fetchone()
-        total_trades, winning_trades, losing_trades, total_pnl = trade_stats
-        
-        # Get open positions count (where exit_time IS NULL)
-        cursor.execute("SELECT COUNT(*) FROM positions WHERE exit_time IS NULL")
-        open_positions = cursor.fetchone()[0]
-        
-        # Get total positions value
-        cursor.execute("""
-            SELECT COALESCE(SUM(size_usd), 0) as positions_value
-            FROM positions
-            WHERE exit_time IS NULL
-        """)
-        positions_value = cursor.fetchone()[0]
-        
-        conn.close()
-        
-        win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
-        total_equity = balance + positions_value
-        
-        return {
-            "balance": round(balance, 2),
-            "total_pnl": round(total_pnl or 0.0, 2),
-            "total_trades": total_trades or 0,
-            "winning_trades": winning_trades or 0,
-            "losing_trades": losing_trades or 0,
-            "win_rate": round(win_rate, 2),
-            "open_positions": open_positions or 0,
-            "total_equity": round(total_equity, 2),
-            "positions_value": round(positions_value, 2)
-        }
-    except Exception as e:
-        return {
-            "balance": 100.0,
-            "total_pnl": 0.0,
-            "total_trades": 0,
-            "winning_trades": 0,
-            "losing_trades": 0,
-            "win_rate": 0.0,
-            "open_positions": 0,
-            "total_equity": 100.0,
-            "positions_value": 0.0,
-            "error": str(e)
-        }
-
-
-@app.get("/api/bots")
-async def get_all_bots():
-    """Return status of all bots."""
-    primary_running = False
-    secondary_running = False
-    
-    # Check for running bot processes
-    for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'cwd']):
-        try:
-            cmdline = proc.info.get('cmdline', [])
-            cwd = proc.info.get('cwd', '')
-            if cmdline and 'main.py' in ' '.join(cmdline) and cwd:
-                if 'Stable/polymarket-bot' in cwd:
-                    primary_running = True
-                elif 'polymarket-arbitrage-bot' in cwd:
-                    secondary_running = True
-        except (psutil.NoSuchProcess, psutil.AccessDenied, KeyError, TypeError):
-            continue
-    
-    return {
-        "primary": {
-            "name": "Primary Bot",
-            "location": str(Path.home() / "Stable" / "polymarket-bot"),
-            "db": str(PRIMARY_BOT_DB),
-            "status": "running" if primary_running else "stopped"
-        },
-        "secondary": {
-            "name": "Secondary Bot (Arbitrage)",
-            "location": str(Path.home() / "gubu-workspace" / "tmp" / "repos" / "polymarket-arbitrage-bot"),
-            "db": str(SECONDARY_BOT_DB),
-            "status": "running" if secondary_running else "stopped"
-        }
-    }
-
-
-@app.get("/api/combined-stats")
-async def get_combined_stats():
-    """Get combined statistics from both bots."""
-    primary_stats = get_db_stats(PRIMARY_BOT_DB)
-    secondary_stats = get_db_stats(SECONDARY_BOT_DB)
-    
-    # Aggregate stats
-    combined = {
-        "primary": primary_stats,
-        "secondary": secondary_stats,
-        "combined": {
-            "total_balance": round(primary_stats["balance"] + secondary_stats["balance"], 2),
-            "total_pnl": round(primary_stats["total_pnl"] + secondary_stats["total_pnl"], 2),
-            "total_trades": primary_stats["total_trades"] + secondary_stats["total_trades"],
-            "total_open_positions": primary_stats["open_positions"] + secondary_stats["open_positions"],
-            "total_equity": round(primary_stats["total_equity"] + secondary_stats["total_equity"], 2),
-            "combined_win_rate": round(
-                ((primary_stats["winning_trades"] + secondary_stats["winning_trades"]) / 
-                 (primary_stats["total_trades"] + secondary_stats["total_trades"]) * 100)
-                if (primary_stats["total_trades"] + secondary_stats["total_trades"]) > 0 else 0.0,
-                2
-            )
-        }
-    }
-    
-    return combined
-
-
-@app.get("/api/all-positions")
-async def get_all_positions():
-    """Get positions from BOTH bots."""
-    primary_positions = []
-    secondary_positions = []
-    
-    # Primary bot positions
-    if PRIMARY_BOT_DB.exists():
-        try:
-            conn = sqlite3.connect(str(PRIMARY_BOT_DB))
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM positions ORDER BY opened_at DESC")
-            primary_positions = [dict(row) for row in cursor.fetchall()]
-            for pos in primary_positions:
-                pos['bot'] = 'primary'
-            conn.close()
-        except:
-            pass
-    
-    # Secondary bot positions
-    if SECONDARY_BOT_DB.exists():
-        try:
-            conn = sqlite3.connect(str(SECONDARY_BOT_DB))
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            # Check if using new schema (entry_time) or old schema (opened_at)
-            cursor.execute("PRAGMA table_info(positions)")
-            columns = [col[1] for col in cursor.fetchall()]
-            
-            # Return raw database fields - no mapping
-            cursor.execute("SELECT * FROM positions ORDER BY entry_time DESC")
-            secondary_positions = [dict(row) for row in cursor.fetchall()]
-            for pos in secondary_positions:
-                pos['bot'] = 'secondary'
-            
-            conn.close()
-        except Exception as e:
-            print(f"Error loading secondary positions: {e}")
-            pass
-    
-    all_positions = primary_positions + secondary_positions
-    # Sort by entry_time (new schema) or opened_at (old schema)
-    all_positions.sort(key=lambda x: x.get('entry_time') or x.get('opened_at'), reverse=True)
-    
-    return {
-        "positions": all_positions,
-        "total_count": len(all_positions),
-        "primary_count": len(primary_positions),
-        "secondary_count": len(secondary_positions)
-    }
 
 
 @app.get("/api/health")

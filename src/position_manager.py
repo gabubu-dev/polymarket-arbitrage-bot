@@ -9,6 +9,7 @@ from typing import Dict, Optional, List
 from datetime import datetime
 from dataclasses import dataclass, field
 from enum import Enum
+from database import TradingDatabase
 
 
 class PositionStatus(Enum):
@@ -47,7 +48,7 @@ class PositionManager:
     """
     
     def __init__(self, polymarket_client, max_positions: int = 5,
-                 position_size_usd: float = 100.0):
+                 position_size_usd: float = 100.0, db_path: str = "paper_trading.db"):
         """
         Initialize position manager.
         
@@ -55,11 +56,15 @@ class PositionManager:
             polymarket_client: PolymarketClient instance
             max_positions: Maximum concurrent positions
             position_size_usd: Default position size in USD
+            db_path: Path to SQLite database
         """
         self.logger = logging.getLogger("PositionManager")
         self.polymarket = polymarket_client
         self.max_positions = max_positions
         self.position_size_usd = position_size_usd
+        
+        # Initialize database
+        self.db = TradingDatabase(db_path)
         
         # Position tracking
         self.positions: Dict[str, Position] = {}
@@ -120,6 +125,9 @@ class PositionManager:
         
         self.positions[position_id] = position
         
+        # Save to database
+        self.db.save_position(position)
+        
         self.logger.info(
             f"Opened position: {position.symbol} {position.direction} @ {price:.3f} "
             f"(size: ${self.position_size_usd})"
@@ -151,10 +159,18 @@ class PositionManager:
             self.logger.warning(f"Position {position_id} is not open")
             return False
         
-        # Calculate P&L
-        # For prediction markets: profit = (exit_price - entry_price) * size
-        # If we bought at 0.60 and exit at 1.00, we profit 0.40 per share
-        pnl = (exit_price - position.entry_price) * position.size_usd
+        # Calculate P&L for prediction markets
+        # When you buy at odds 0.30 with $50, you get 50/0.30 = 166.67 shares
+        # If you sell at 0.40, profit = 166.67 * (0.40 - 0.30) = $16.67
+        # Formula: pnl = size_usd * ((exit_price - entry_price) / entry_price)
+        
+        if position.entry_price > 0:
+            shares = position.size_usd / position.entry_price
+            pnl = shares * (exit_price - position.entry_price)
+        else:
+            # Fallback if entry price is somehow 0
+            pnl = 0.0
+            self.logger.error(f"Position {position_id} has entry_price = 0!")
         
         # Update position
         position.exit_price = exit_price
@@ -174,6 +190,9 @@ class PositionManager:
         self.closed_positions.append(position)
         del self.positions[position_id]
         
+        # Save to database
+        self.db.save_position(position)
+        
         hold_time = (position.exit_time - position.entry_time).total_seconds()
         
         self.logger.info(
@@ -183,16 +202,33 @@ class PositionManager:
         
         return True
     
-    async def check_position_exits(self, risk_manager) -> None:
+    async def check_position_exits(self, risk_manager, exchange_monitor=None) -> None:
         """
         Check all open positions for exit conditions.
         
         Args:
             risk_manager: RiskManager instance to check exit rules
+            exchange_monitor: Exchange monitor to get current prices
         """
         for position_id, position in list(self.positions.items()):
+            # Get current Polymarket odds (not exchange price!)
+            current_odds = None
+            try:
+                odds = self.polymarket.get_market_odds(position.market_id)
+                # Use appropriate odds based on position direction
+                if position.direction == 'up':
+                    current_odds = odds.get('yes', position.entry_price)
+                else:
+                    current_odds = odds.get('no', position.entry_price)
+            except Exception as e:
+                self.logger.error(f"Failed to get current odds for {position.market_id}: {e}")
+                # Fallback to entry price if can't get current odds
+                current_odds = position.entry_price
+            
             # Check if position should be closed
-            should_exit, exit_price, reason = await risk_manager.should_exit_position(position)
+            should_exit, exit_price, reason = await risk_manager.should_exit_position(
+                position, current_price=current_odds
+            )
             
             if should_exit:
                 await self.close_position(position_id, exit_price, reason)
@@ -228,7 +264,7 @@ class PositionManager:
         total_trades = self.win_count + self.loss_count
         win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0
         
-        return {
+        stats = {
             'total_pnl': self.total_pnl,
             'total_trades': total_trades,
             'wins': self.win_count,
@@ -237,3 +273,8 @@ class PositionManager:
             'open_positions': len(self.positions),
             'avg_pnl_per_trade': self.total_pnl / total_trades if total_trades > 0 else 0
         }
+        
+        # Save to database
+        self.db.save_statistics(stats)
+        
+        return stats
