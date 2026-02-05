@@ -1,0 +1,16 @@
+[Unit]
+Description=Polymarket Trading Bot - Frontend UI
+After=network.target
+
+[Service]
+Type=simple
+User=Gabe
+WorkingDirectory=/home/Gabe/gubu-workspace/tmp/repos/polymarket-arbitrage-bot/ui/frontend
+ExecStart=/usr/bin/npm run dev
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/Gabe/gubu-workspace/tmp/repos/polymarket-arbitrage-bot/ui/frontend.log
+StandardError=append:/home/Gabe/gubu-workspace/tmp/repos/polymarket-arbitrage-bot/ui/frontend.log
+
+[Install]
+WantedBy=default.target
