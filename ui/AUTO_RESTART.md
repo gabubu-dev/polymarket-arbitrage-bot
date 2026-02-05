@@ -2,9 +2,15 @@
 
 ## Setup Complete (2026-02-05)
 
-Both frontend and backend now run as systemd user services with automatic restart on failure.
+All three components now run as systemd user services with automatic restart on failure.
 
 ## Services
+
+### Trading Bot
+- **Service:** `polymarket-trading-bot.service`
+- **Command:** `python bot_paper.py`
+- **Logs:** `bot_paper.log`
+- **Auto-restart:** Yes (10s delay)
 
 ### Backend API
 - **Service:** `polymarket-ui-backend.service`
@@ -23,22 +29,29 @@ Both frontend and backend now run as systemd user services with automatic restar
 ## Management Commands
 
 ```bash
-# Check status
+# Check status (all services)
+systemctl --user status polymarket-trading-bot
 systemctl --user status polymarket-ui-backend
 systemctl --user status polymarket-ui-frontend
 
+# Or check all at once
+systemctl --user status polymarket-*
+
 # Restart manually
+systemctl --user restart polymarket-trading-bot
 systemctl --user restart polymarket-ui-backend
 systemctl --user restart polymarket-ui-frontend
 
 # Stop services
-systemctl --user stop polymarket-ui-backend polymarket-ui-frontend
+systemctl --user stop polymarket-trading-bot polymarket-ui-backend polymarket-ui-frontend
 
 # View logs
+journalctl --user -u polymarket-trading-bot -f
 journalctl --user -u polymarket-ui-backend -f
 journalctl --user -u polymarket-ui-frontend -f
 
 # Or tail log files directly
+tail -f bot_paper.log
 tail -f ui/backend.log
 tail -f ui/frontend.log
 ```

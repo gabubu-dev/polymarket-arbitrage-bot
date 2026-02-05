@@ -1,0 +1,16 @@
+[Unit]
+Description=Polymarket Trading Bot (Paper Trading)
+After=network.target
+
+[Service]
+Type=simple
+User=Gabe
+WorkingDirectory=/home/Gabe/gubu-workspace/tmp/repos/polymarket-arbitrage-bot
+ExecStart=/usr/bin/python bot_paper.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/Gabe/gubu-workspace/tmp/repos/polymarket-arbitrage-bot/bot_paper.log
+StandardError=append:/home/Gabe/gubu-workspace/tmp/repos/polymarket-arbitrage-bot/bot_paper.log
+
+[Install]
+WantedBy=default.target
